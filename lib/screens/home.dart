@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'chat_screen.dart';
+import 'UsersListScreen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,7 +15,6 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
       body: CustomScrollView(
         slivers: [
-          // App Bar with profile header
           SliverAppBar(
             expandedHeight: 200,
             flexibleSpace: FlexibleSpaceBar(
@@ -105,9 +104,8 @@ class HomeScreen extends StatelessWidget {
 
                   if (shouldLogout == true) {
                     await FirebaseAuth.instance.signOut();
-                    if (context.mounted) {
+                    if (context.mounted)
                       Navigator.pushReplacementNamed(context, '/login');
-                    }
                   }
                 },
               ),
@@ -116,40 +114,8 @@ class HomeScreen extends StatelessWidget {
 
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ChatScreen(
-                userId: user!.uid,
-                chatId: '',
-              ), // custom widget you create
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-
-          // Other options like Messages, Groups, Settings
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: Icon(Icons.message, color: theme.primaryColor),
-                  title: const Text("My Messages"),
-                  onTap: () => Navigator.pushNamed(context, '/messages'),
-                ),
-                ListTile(
-                  leading: Icon(Icons.group, color: theme.primaryColor),
-                  title: const Text("My Groups"),
-                  onTap: () => Navigator.pushNamed(context, '/groups'),
-                ),
-                ListTile(
-                  leading: Icon(Icons.settings, color: theme.primaryColor),
-                  title: const Text("Settings"),
-                  onTap: () => Navigator.pushNamed(context, '/settings'),
-                ),
-              ],
-            ),
-          ),
+          // Users List Section
+          SliverToBoxAdapter(child: UsersListScreen()),
         ],
       ),
     );

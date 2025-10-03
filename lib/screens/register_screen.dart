@@ -54,19 +54,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordCtl.text,
       );
 
+      final user = cred.user;
+      if (user == null) throw Exception("User not found after registration.");
+
       // Optional: set display name
-      await cred.user?.updateDisplayName(
+      await user.updateDisplayName(
         _nameCtl.text.trim().isEmpty ? null : _nameCtl.text.trim(),
       );
 
-      // Optional: send email verification
-      // await cred.user?.sendEmailVerification();
+      // Create Firestore user document
+      final userDoc = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+      await userDoc.set({
+        'name': _nameCtl.text.trim(),
+        'email': user.email,
+        'photoUrl': user.photoURL ?? '',
+        'phone': '', // default empty
+        'status': '', // default empty
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Decide navigation based on profile completeness
+      final snapshot = await userDoc.get();
+      final data = snapshot.data() ?? {};
+      if ((data['phone'] as String).isEmpty ||
+          (data['status'] as String).isEmpty) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => ProfileCompletionScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
 
       _showSnack('Account created successfully!');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
     } on FirebaseAuthException catch (e) {
       String msg = 'Registration failed. Please try again.';
       switch (e.code) {
@@ -81,8 +106,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           break;
       }
       _showSnack(msg);
-    } catch (_) {
-      _showSnack('Unexpected error. Please try again.');
+    } catch (e) {
+      _showSnack('Unexpected error. Please try again. Error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -44,16 +44,37 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailCtl.text.trim(),
         password: _passwordCtl.text,
       );
 
+      final user = cred.user;
+      if (user == null) throw Exception("User not found after login.");
+
+      // Fetch user document
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final data = userDoc.data() ?? {};
+
+      // Navigate based on profile completeness
+      final phone = data['phone'] as String?;
+      final status = data['status'] as String?;
+      if (phone == null || phone.isEmpty || status == null || status.isEmpty) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => ProfileCompletionScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+
       _showSnack('Logged in successfully!');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
     } on FirebaseAuthException catch (e) {
       final code = e.code;
       String msg = 'Login failed. Please try again.';
@@ -62,8 +83,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (code == 'invalid-email') msg = 'Invalid email format.';
       if (code == 'user-disabled') msg = 'This account has been disabled.';
       _showSnack(msg);
-    } catch (_) {
-      _showSnack('Unexpected error. Check your internet and try again.');
+    } catch (e) {
+      _showSnack(
+        'Unexpected error. Check your internet and try again. Error: $e',
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
