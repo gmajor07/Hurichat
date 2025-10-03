@@ -1,0 +1,144 @@
+{
+  "project_info": {
+    "project_number": "682244412177",
+    "firebase_url": "https://friendapp-6ff9c-default-rtdb.firebaseio.com",
+    "project_id": "friendapp-6ff9c",
+    "storage_bucket": "friendapp-6ff9c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682244412177:android:c21ec15e10f0961373f2b0",
+        "android_client_info": {
+          "package_name": "com.example.barcode"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682244412177:android:4896cb86d9a6f37773f2b0",
+        "android_client_info": {
+          "package_name": "com.example.dalali"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682244412177:android:019271f7397231d373f2b0",
+        "android_client_info": {
+          "package_name": "com.example.demo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682244412177:android:21f166ccbbdf0e5573f2b0",
+        "android_client_info": {
+          "package_name": "com.example.google_auth"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682244412177:android:0d8a7f481a4ee02473f2b0",
+        "android_client_info": {
+          "package_name": "com.example.lovemsg"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682244412177:android:8edf346e93a4710b73f2b0",
+        "android_client_info": {
+          "package_name": "com.example.ticket"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:682244412177:android:8408bc9d83219d0a73f2b0",
+        "android_client_info": {
+          "package_name": "com.huruchat.huruchat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
