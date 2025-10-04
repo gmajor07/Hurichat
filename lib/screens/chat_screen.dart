@@ -40,6 +40,38 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.clear();
   }
 
+  String getChatId(String uid1, String uid2) {
+    // Always sort the UIDs alphabetically to get the same chatId for both users
+    List<String> uids = [uid1, uid2];
+    uids.sort();
+    return uids.join('_'); // Example: "uidA_uidB"
+  }
+
+  void openChat(BuildContext context, String otherUserId) async {
+    final currentUser = FirebaseAuth.instance.currentUser!;
+    final chatId = getChatId(currentUser.uid, otherUserId);
+
+    final chatDoc = FirebaseFirestore.instance.collection('chats').doc(chatId);
+
+    // Create chat document if it doesn't exist
+    final docSnapshot = await chatDoc.get();
+    if (!docSnapshot.exists) {
+      await chatDoc.set({
+        'members': [currentUser.uid, otherUserId],
+        'lastMessage': '',
+        'lastTimestamp': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Navigate to chat screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(chatId: chatId, userId: currentUser.uid),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -59,27 +91,25 @@ class _ChatScreenState extends State<ChatScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData)
-                  return const Center(child: CircularProgressIndicator());
+                  return Center(child: CircularProgressIndicator());
 
                 final docs = snapshot.data!.docs;
-
                 return ListView.builder(
                   reverse: true,
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
-                    final isMe = data['senderId'] == user.uid;
-
+                    final isMe = data['senderId'] == widget.userId;
                     return Align(
                       alignment: isMe
                           ? Alignment.centerRight
                           : Alignment.centerLeft,
                       child: Container(
-                        margin: const EdgeInsets.symmetric(
+                        margin: EdgeInsets.symmetric(
                           vertical: 4,
                           horizontal: 8,
                         ),
-                        padding: const EdgeInsets.all(10),
+                        padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: isMe ? Colors.green[300] : Colors.grey[300],
                           borderRadius: BorderRadius.circular(12),

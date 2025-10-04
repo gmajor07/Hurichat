@@ -224,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Sign in to continue booking movies',
+                            'Sign in to continue hurichat',
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: theme.colorScheme.onBackground.withOpacity(
                                 0.7,

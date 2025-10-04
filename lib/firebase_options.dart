@@ -41,53 +41,50 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBiTl0hnXRrvVIVJcD1kMKAyMx-SeuyItc',
-    appId: '1:682244412177:web:7454d35eb49b4f3073f2b0',
-    messagingSenderId: '682244412177',
-    projectId: 'friendapp-6ff9c',
-    authDomain: 'friendapp-6ff9c.firebaseapp.com',
-    databaseURL: 'https://friendapp-6ff9c-default-rtdb.firebaseio.com',
-    storageBucket: 'friendapp-6ff9c.appspot.com',
-    measurementId: 'G-T3SV43E2VM',
+    apiKey: 'AIzaSyD1t9o7eCqvIZtne5JZaiJmGKpFQtnRMTY',
+    appId: '1:751471598501:web:62692fedd45bf3a9ce664c',
+    messagingSenderId: '751471598501',
+    projectId: 'huruchat-2c9f9',
+    authDomain: 'huruchat-2c9f9.firebaseapp.com',
+    storageBucket: 'huruchat-2c9f9.firebasestorage.app',
+    measurementId: 'G-RGFBF4641W',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCFcexcQgYTUF6znsQkliaNMKweOskbnn0',
-    appId: '1:682244412177:android:8408bc9d83219d0a73f2b0',
-    messagingSenderId: '682244412177',
-    projectId: 'friendapp-6ff9c',
-    databaseURL: 'https://friendapp-6ff9c-default-rtdb.firebaseio.com',
-    storageBucket: 'friendapp-6ff9c.appspot.com',
+    apiKey: 'AIzaSyC3eteYvQNFRdp1Mw_X6pVcE9vQ_FR2bl4',
+    appId: '1:751471598501:android:32459e763868ce40ce664c',
+    messagingSenderId: '751471598501',
+    projectId: 'huruchat-2c9f9',
+    storageBucket: 'huruchat-2c9f9.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBckMZhBAYWAJixF3NrvOk1mcW0gJ5KI1U',
-    appId: '1:682244412177:ios:c2ded653a9216a7673f2b0',
-    messagingSenderId: '682244412177',
-    projectId: 'friendapp-6ff9c',
-    databaseURL: 'https://friendapp-6ff9c-default-rtdb.firebaseio.com',
-    storageBucket: 'friendapp-6ff9c.appspot.com',
+    apiKey: 'AIzaSyAElHBbN66hUx6OP3nSC448VjLcrLJIJY4',
+    appId: '1:751471598501:ios:8bcce56ba24e2ddace664c',
+    messagingSenderId: '751471598501',
+    projectId: 'huruchat-2c9f9',
+    storageBucket: 'huruchat-2c9f9.firebasestorage.app',
+    iosClientId: '751471598501-0a2b0mrkmrue22v4146hbqq172gknab5.apps.googleusercontent.com',
     iosBundleId: 'com.huruchat.huruchat',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBckMZhBAYWAJixF3NrvOk1mcW0gJ5KI1U',
-    appId: '1:682244412177:ios:c2ded653a9216a7673f2b0',
-    messagingSenderId: '682244412177',
-    projectId: 'friendapp-6ff9c',
-    databaseURL: 'https://friendapp-6ff9c-default-rtdb.firebaseio.com',
-    storageBucket: 'friendapp-6ff9c.appspot.com',
+    apiKey: 'AIzaSyAElHBbN66hUx6OP3nSC448VjLcrLJIJY4',
+    appId: '1:751471598501:ios:8bcce56ba24e2ddace664c',
+    messagingSenderId: '751471598501',
+    projectId: 'huruchat-2c9f9',
+    storageBucket: 'huruchat-2c9f9.firebasestorage.app',
+    iosClientId: '751471598501-0a2b0mrkmrue22v4146hbqq172gknab5.apps.googleusercontent.com',
     iosBundleId: 'com.huruchat.huruchat',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBiTl0hnXRrvVIVJcD1kMKAyMx-SeuyItc',
-    appId: '1:682244412177:web:859d3f8a929fedef73f2b0',
-    messagingSenderId: '682244412177',
-    projectId: 'friendapp-6ff9c',
-    authDomain: 'friendapp-6ff9c.firebaseapp.com',
-    databaseURL: 'https://friendapp-6ff9c-default-rtdb.firebaseio.com',
-    storageBucket: 'friendapp-6ff9c.appspot.com',
-    measurementId: 'G-LY4JLVPY5V',
+    apiKey: 'AIzaSyD1t9o7eCqvIZtne5JZaiJmGKpFQtnRMTY',
+    appId: '1:751471598501:web:de979197ab989fe9ce664c',
+    messagingSenderId: '751471598501',
+    projectId: 'huruchat-2c9f9',
+    authDomain: 'huruchat-2c9f9.firebaseapp.com',
+    storageBucket: 'huruchat-2c9f9.firebasestorage.app',
+    measurementId: 'G-8BDJG6NTS3',
   );
 }
