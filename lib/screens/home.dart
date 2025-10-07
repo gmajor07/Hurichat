@@ -1,121 +1,333 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'UsersListScreen.dart';
+import 'discovery_connection_screen.dart';
+import 'connection_request.dart';
+import 'connection_screen.dart';
+import 'users_list_screen.dart';
+import 'groups_screen.dart';
+import 'status_screen.dart';
+import 'account_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 1; // Default tab: Chats
+  final Color themeColor = const Color(0xFF4CAFAB);
+
+  final List<Widget> _screens = [
+    const GroupsScreen(),
+    UsersListScreen(),
+    const StatusScreen(),
+    const AccountScreen(),
+  ];
+
+  @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 200,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: isDark
-                        ? [Colors.lightGreen.shade800, Colors.green.shade800]
-                        : [Colors.lightGreen.shade500, Colors.green.shade500],
-                  ),
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        titleSpacing: 0,
+        title: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'HuriChat',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black87,
                 ),
-                child: SafeArea(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.2),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 2,
-                          ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.search, size: 22),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white70
+                        : Colors.black54,
+                    onPressed: () {},
+                  ),
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, size: 22),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade800
+                        : Colors.white,
+                    onSelected: (value) => _handleMenuSelection(value, context),
+                    itemBuilder: (BuildContext context) => [
+                      // ... same menu items as above
+                      PopupMenuItem(
+                        value: 'discover',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.explore_outlined,
+                              color: const Color(0xFF4CAFAB),
+                            ),
+                            SizedBox(width: 12),
+                            Text('Discover Connections'),
+                          ],
                         ),
-                        child: user?.photoURL != null
-                            ? CircleAvatar(
-                                backgroundImage: NetworkImage(user!.photoURL!),
-                              )
-                            : Icon(
-                                Icons.person,
-                                size: 40,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        user?.email ?? '',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 14,
+                      PopupMenuItem(
+                        value: 'requests',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person_add_outlined,
+                              color: const Color(0xFF4CAFAB),
+                            ),
+                            SizedBox(width: 12),
+                            Text('Connection Requests'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, color: Colors.redAccent),
+                            SizedBox(width: 12),
+                            Text(
+                              'Logout',
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-            actions: [
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.logout,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                onPressed: () async {
-                  final shouldLogout = await showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Logout'),
-                      content: const Text('Are you sure you want to logout?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text(
-                            'Logout',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (shouldLogout == true) {
-                    await FirebaseAuth.instance.signOut();
-                    if (context.mounted)
-                      Navigator.pushReplacementNamed(context, '/login');
-                  }
-                },
+                ],
               ),
             ],
           ),
+        ),
+      ),
+      body: _screens[_currentIndex],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          selectedItemColor: themeColor,
+          unselectedItemColor: isDark
+              ? Colors.grey.shade400
+              : Colors.grey.shade600,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+          items: [
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                child: const Icon(Icons.groups_outlined),
+              ),
+              activeIcon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.groups),
+              ),
+              label: 'Groups',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                child: const Icon(Icons.chat_outlined),
+              ),
+              activeIcon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.chat),
+              ),
+              label: 'Chats',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                child: const Icon(Icons.camera_alt_outlined),
+              ),
+              activeIcon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.camera_alt),
+              ),
+              label: 'Status',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                child: const Icon(Icons.person_outline),
+              ),
+              activeIcon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.person),
+              ),
+              label: 'Profile',
+            ),
+          ],
+        ),
+      ),
 
-          // Users List Section
-          SliverToBoxAdapter(child: UsersListScreen()),
+      floatingActionButton: _buildFloatingActionButton(isDark),
+    );
+  }
+
+  Widget? _buildFloatingActionButton(bool isDark) {
+    switch (_currentIndex) {
+      case 0: // Groups
+        return FloatingActionButton(
+          backgroundColor: themeColor,
+          elevation: 4,
+          child: const Icon(Icons.group_add, color: Colors.white, size: 28),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ConnectionsDiscoveryScreen()),
+            );
+          },
+        );
+
+      case 1: // Chats
+        return FloatingActionButton(
+          backgroundColor: themeColor,
+          elevation: 4,
+          child: const Icon(Icons.person_add, color: Colors.white, size: 28),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ConnectionScreen()),
+            );
+          },
+        );
+
+      case 2: // Status
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            FloatingActionButton(
+              mini: true,
+              backgroundColor: isDark
+                  ? Colors.grey.shade700
+                  : Colors.grey.shade300,
+              elevation: 2,
+              child: Icon(
+                Icons.edit,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
+              ),
+              onPressed: () {
+                // TODO: Implement status editing
+              },
+            ),
+            const SizedBox(height: 16),
+            FloatingActionButton(
+              backgroundColor: themeColor,
+              elevation: 4,
+              child: const Icon(
+                Icons.camera_alt,
+                color: Colors.white,
+                size: 28,
+              ),
+              onPressed: () {
+                // TODO: Implement camera for status
+              },
+            ),
+          ],
+        );
+      default:
+        return null;
+    }
+  }
+
+  void _handleMenuSelection(String value, BuildContext context) {
+    switch (value) {
+      case 'logout':
+        _showLogoutDialog(context);
+        break;
+      case 'requests':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ConnectionRequestsScreen()),
+        );
+        break;
+      case 'discover':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ConnectionsDiscoveryScreen()),
+        );
+        break;
+    }
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Logout',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text(
+              'Logout',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );

@@ -20,7 +20,9 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
   bool _otpSent = false;
   bool _loading = false;
 
-  // Step 1: Request OTP
+  final Color themeColor = const Color(0xFF4CAFAB);
+
+  // Step 1: Send OTP
   Future<void> _verifyPhone() async {
     setState(() => _loading = true);
 
@@ -28,7 +30,6 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
       phoneNumber: _phoneController.text.trim(),
       timeout: const Duration(seconds: 60),
       verificationCompleted: (PhoneAuthCredential credential) async {
-        // Auto-verification (on some devices Google Play Services can handle OTP)
         await _auth.signInWithCredential(credential);
         _showSnack("✅ Logged in automatically!");
       },
@@ -39,7 +40,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
       codeSent: (String verificationId, int? resendToken) {
         setState(() {
           _otpSent = true;
-          _verificationId = verificationId; // save verificationId
+          _verificationId = verificationId;
           _loading = false;
         });
         _showSnack("📩 OTP sent! Enter the code.");
@@ -90,48 +91,151 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  InputDecoration _inputDecoration(String hint, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InputDecoration(
+      prefixIcon: Icon(icon, color: Colors.grey[600]),
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.grey),
+      filled: true,
+      fillColor: isDark ? Colors.grey[850] : Colors.grey[100],
+      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: themeColor, width: 1.3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Phone Auth")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (!_otpSent) ...[
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: "Phone number",
-                  hintText: "+255760733827",
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0, top: 8.0),
+          child: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: Icon(
+              Icons.arrow_back_ios_new,
+              color: isDark ? Colors.white70 : Colors.black87,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _otpSent ? "Enter Verification Code" : "Phone Verification",
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _loading ? null : _verifyPhone,
-                child: _loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Send OTP"),
-              ),
-            ] else ...[
-              TextField(
-                controller: _otpController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Enter OTP",
-                  hintText: "123456",
+              const SizedBox(height: 35),
+
+              // Phone input
+              if (!_otpSent) ...[
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: _inputDecoration(
+                    'Enter your phone number',
+                    Icons.phone,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _loading ? null : _verifyOTP,
-                child: _loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Verify OTP"),
-              ),
+                const SizedBox(height: 25),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _verifyPhone,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: _loading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Send OTP',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+
+              // OTP input
+              if (_otpSent) ...[
+                TextField(
+                  controller: _otpController,
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration(
+                    'Enter OTP code',
+                    Icons.sms_outlined,
+                  ),
+                ),
+                const SizedBox(height: 25),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _verifyOTP,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: _loading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Verify OTP',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                TextButton(
+                  onPressed: _verifyPhone,
+                  child: Text(
+                    'Resend OTP',
+                    style: TextStyle(
+                      color: themeColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
