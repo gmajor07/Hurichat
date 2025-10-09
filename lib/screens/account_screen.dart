@@ -37,45 +37,55 @@ class _AccountScreenState extends State<AccountScreen> {
     setState(() => _loading = false);
   }
 
-  Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushReplacementNamed(context, '/login');
+  void _updateProfile() {
+    Navigator.pushNamed(context, '/completeProfile');
   }
 
-  Widget _buildInfoRow(IconData icon, String title, String value) {
+  Widget _buildInfoRow(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+        ),
       ),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF4CAFAB), size: 22),
+          Icon(icon, color: const Color(0xFF497A72), size: 22),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -84,8 +94,13 @@ class _AccountScreenState extends State<AccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark
+        ? const Color(0xFF121212)
+        : Colors.grey.shade50;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: backgroundColor,
 
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -97,14 +112,18 @@ class _AccountScreenState extends State<AccountScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4CAFAB).withOpacity(0.1),
+                      color: isDark
+                          ? const Color(0xFF1E1E1E)
+                          : const Color(0xFF497A72).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 35,
-                          backgroundColor: Colors.grey[300],
+                          backgroundColor: isDark
+                              ? Colors.grey[700]
+                              : Colors.grey[300],
                           backgroundImage: userData?['photoUrl'] != null
                               ? NetworkImage(userData!['photoUrl'] as String)
                               : null,
@@ -112,7 +131,9 @@ class _AccountScreenState extends State<AccountScreen> {
                               ? Icon(
                                   Icons.person,
                                   size: 40,
-                                  color: Colors.grey[600],
+                                  color: isDark
+                                      ? Colors.grey[400]
+                                      : Colors.grey,
                                 )
                               : null,
                         ),
@@ -123,27 +144,31 @@ class _AccountScreenState extends State<AccountScreen> {
                             children: [
                               Text(
                                 userData?['name'] ?? 'Unknown User',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 user?.phoneNumber ?? 'No phone number',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey,
+                                  color: isDark
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
                                 ),
                               ),
                               if (userData?['age'] != null) ...[
                                 const SizedBox(height: 4),
                                 Text(
                                   '${userData!['age']} years old',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey,
+                                    color: isDark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
                                   ),
                                 ),
                               ],
@@ -155,60 +180,60 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // Personal Information Section
-                  const Align(
+                  // Personal Info Section
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Personal Information',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Name
                   _buildInfoRow(
+                    context,
                     Icons.person_outline,
                     'Full Name',
                     userData?['name'] ?? 'Not set',
                   ),
 
-                  // Phone
                   _buildInfoRow(
+                    context,
                     Icons.phone_iphone_outlined,
                     'Phone Number',
                     user?.phoneNumber ?? 'Not set',
                   ),
 
-                  // Gender
                   if (userData?['gender'] != null)
                     _buildInfoRow(
+                      context,
                       Icons.transgender,
                       'Gender',
                       userData!['gender'] as String,
                     ),
 
-                  // Age
                   if (userData?['age'] != null)
                     _buildInfoRow(
+                      context,
                       Icons.cake_outlined,
                       'Age',
                       '${userData!['age']} years old',
                     ),
 
-                  // Birth Date
                   if (userData?['birthDate'] != null)
                     _buildInfoRow(
+                      context,
                       Icons.calendar_today_outlined,
                       'Birth Date',
                       _formatDate(userData!['birthDate']),
                     ),
 
-                  // Status
                   _buildInfoRow(
+                    context,
                     Icons.circle,
                     'Status',
                     userData?['status'] ?? 'Active',
@@ -216,33 +241,27 @@ class _AccountScreenState extends State<AccountScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Logout Button
+                  // Update Profile Button
                   SizedBox(
                     width: double.infinity,
                     height: 56,
-                    child: ElevatedButton(
-                      onPressed: _signOut,
+                    child: ElevatedButton.icon(
+                      onPressed: _updateProfile,
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      label: const Text(
+                        'Update Profile',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
+                        backgroundColor: const Color(0xFF497A72),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                         elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.logout, color: Colors.white, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Logout',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),

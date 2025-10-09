@@ -5,10 +5,14 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const themeColor = Color(0xFF4CAFaa); // HURUchat accent color
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeColor = const Color(0xFF4CAFaa); // HURUchat accent color
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.white70 : Colors.black54;
+    final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: backgroundColor,
       body: SafeArea(
         child: Stack(
           children: [
@@ -33,22 +37,17 @@ class WelcomeScreen extends StatelessWidget {
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Poppins',
+                      color: textColor,
                     ),
                     children: [
-                      const TextSpan(
-                        text: 'Welcome to ',
-                        style: TextStyle(color: Colors.black87),
-                      ),
-                      const TextSpan(
+                      const TextSpan(text: 'Welcome to '),
+                      TextSpan(
                         text: 'HURU',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          letterSpacing: 0.5,
-                        ),
+                        style: TextStyle(color: textColor, letterSpacing: 0.5),
                       ),
                       TextSpan(
                         text: 'chat',
@@ -60,14 +59,14 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 14),
 
                 // Description
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 32.0),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0),
                   child: Text(
                     'Connect instantly, chat freely, and build meaningful conversations with HURUchat.',
                     style: TextStyle(
                       fontSize: 16,
                       height: 1.5,
-                      color: Colors.black54,
+                      color: subTextColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
