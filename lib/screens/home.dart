@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'discovery_connection_screen.dart';
-import 'connection_request.dart';
-import 'connection_screen.dart';
+import 'connection/discovery_connection_screen.dart';
+import 'connection/connection_request.dart';
+import 'connection/connection_screen.dart';
+import 'huru/huru_screen.dart';
 import 'users_list_screen.dart';
-import 'groups_screen.dart';
+import 'transport_screen.dart';
 import 'status_screen.dart';
-import 'account_screen.dart';
+import 'user_account/account_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,8 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final Color themeColor = const Color(0xFF4CAFAB);
 
   final List<Widget> _screens = [
-    const GroupsScreen(),
+    const TransportScreen(),
     UsersListScreen(),
+    const HuruScreen(),
     const StatusScreen(),
     const AccountScreen(),
   ];
@@ -148,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Container(
                 padding: const EdgeInsets.all(6),
-                child: const Icon(Icons.groups_outlined),
+                child: const Icon(Icons.car_rental),
               ),
               activeIcon: Container(
                 padding: const EdgeInsets.all(6),
@@ -156,9 +158,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: themeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.groups),
+                child: const Icon(Icons.car_rental),
               ),
-              label: 'Groups',
+              label: 'Transport',
             ),
             BottomNavigationBarItem(
               icon: Container(
@@ -178,6 +180,21 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Container(
                 padding: const EdgeInsets.all(6),
+                child: const Icon(Icons.menu),
+              ),
+              activeIcon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.menu),
+              ),
+              label: 'Huru',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
                 child: const Icon(Icons.camera_alt_outlined),
               ),
               activeIcon: Container(
@@ -186,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: themeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.camera_alt),
+                child: const Icon(Icons.desktop_mac),
               ),
               label: 'Status',
             ),

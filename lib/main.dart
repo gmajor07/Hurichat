@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:huruchat/firebase_options.dart';
-import 'package:huruchat/screens/phone_screen.dart';
-import 'package:huruchat/screens/register_screen.dart';
-import 'screens/login_screen.dart';
+import 'package:huruchat/screens/auth/phone_screen.dart';
+import 'package:huruchat/screens/auth/register_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/chat/presence_service.dart';
 import 'screens/home.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'welcome_screen.dart';
+
+final presenceService = PresenceService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +18,7 @@ void main() async {
   //  Initialize Hive
   await Hive.initFlutter();
   await Hive.openBox('messages');
+  presenceService.init();
 
   runApp(const MyApp());
 }

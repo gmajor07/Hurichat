@@ -15,7 +15,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -28,14 +27,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _registerUser() async {
     final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (email.isEmpty ||
-        phone.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       _showSnackBar('Please fill in all fields');
       return;
     }
@@ -54,7 +49,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'email': email,
-        'phone': phone,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -155,14 +149,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 decoration: _inputDecoration('Enter your email', Icons.email),
                 keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-
-              // Phone
-              TextField(
-                controller: _phoneController,
-                decoration: _inputDecoration('Enter your number', Icons.phone),
-                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 16),
 

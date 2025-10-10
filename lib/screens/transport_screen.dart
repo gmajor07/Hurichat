@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class GroupsScreen extends StatelessWidget {
-  const GroupsScreen({super.key});
+class TransportScreen extends StatelessWidget {
+  const TransportScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -9,7 +9,7 @@ class GroupsScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: Center(
         child: Text(
-          'Groups will appear here',
+          'TransportScreen will appear here',
           style: TextStyle(fontSize: 18, color: Colors.grey),
         ),
       ),

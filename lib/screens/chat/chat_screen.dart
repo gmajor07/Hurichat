@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../receiver_details_screen.dart';
+import '../user_account/receiver_details_screen.dart';
 import 'chat_controller.dart';
 import 'chat_widgets.dart';
 
@@ -38,86 +38,116 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final receiver = controller.receiverData;
-    final nameRaw = (receiver?['name'] ?? 'Unknown') as String;
-    final name = nameRaw.isNotEmpty
-        ? nameRaw[0].toUpperCase() + nameRaw.substring(1)
-        : nameRaw;
-    final photo = (receiver?['photoUrl'] ?? '') as String;
-    final status = (receiver?['status'] ?? '').toString().toLowerCase();
+    final receiverId = controller.receiverData?['uid'] ?? widget.userId;
 
-    final isOnline =
-        status == 'online' || status == 'active' || status == 'available';
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(kToolbarHeight),
+      child: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(receiverId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return AppBar(
+              title: const Text('Loading...'),
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              elevation: 1,
+            );
+          }
 
-    return AppBar(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      elevation: 1,
-      shadowColor: Colors.black12,
-      leading: IconButton(
-        icon: Icon(
-          Icons.arrow_back_ios_new,
-          color: Theme.of(context).textTheme.bodyLarge?.color,
-        ),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: GestureDetector(
-        onTap: () {
-          final receiverId = controller.receiverData?['uid'] ?? widget.userId;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ReceiverDetailsScreen(userId: receiverId),
+          final receiverData =
+              snapshot.data!.data() as Map<String, dynamic>? ?? {};
+
+          final nameRaw = (receiverData['name'] ?? 'Unknown') as String;
+          final name = nameRaw.isNotEmpty
+              ? nameRaw[0].toUpperCase() + nameRaw.substring(1)
+              : nameRaw;
+
+          final photo = (receiverData['photoUrl'] ?? '') as String;
+          final status = (receiverData['status'] ?? 'offline')
+              .toString()
+              .toLowerCase();
+
+          final isOnline =
+              status == 'online' || status == 'active' || status == 'available';
+
+          return AppBar(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            elevation: 1,
+            shadowColor: Colors.black12,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReceiverDetailsScreen(userId: receiverId),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundImage: photo.isNotEmpty
+                        ? NetworkImage(photo)
+                        : null,
+                    backgroundColor: Colors.grey.shade300,
+                    child: photo.isEmpty
+                        ? const Icon(Icons.person, color: Colors.white)
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: isOnline
+                                  ? Colors.greenAccent.shade400
+                                  : Colors.grey,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isOnline ? 'Online' : 'Offline',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isOnline
+                                  ? Colors.greenAccent.shade400
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         },
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
-              backgroundColor: Colors.grey.shade300,
-              child: photo.isEmpty
-                  ? Icon(Icons.person, color: Colors.white)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isOnline
-                            ? Colors.greenAccent.shade400
-                            : Colors.grey,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isOnline ? 'Online' : 'Offline',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
