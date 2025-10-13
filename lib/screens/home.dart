@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'connection/discovery_connection_screen.dart';
@@ -6,7 +7,6 @@ import 'connection/connection_screen.dart';
 import 'huru/huru_screen.dart';
 import 'users_list_screen.dart';
 import 'transport_screen.dart';
-import 'status_screen.dart';
 import 'user_account/account_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,9 +24,49 @@ class _HomeScreenState extends State<HomeScreen> {
     const TransportScreen(),
     UsersListScreen(),
     const HuruScreen(),
-    const StatusScreen(),
     const AccountScreen(),
   ];
+
+  String firstName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserName();
+  }
+
+  String _capitalizeName(String name) {
+    if (name.isEmpty) return name;
+    return name
+        .split(' ')
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+
+  Future<void> _fetchUserName() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (doc.exists && mounted) {
+          setState(() {
+            firstName = _capitalizeName(doc.data()?['name'] ?? 'User');
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching user name: $e');
+      if (mounted) {
+        setState(() {
+          firstName = 'User';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         titleSpacing: 0,
         title: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -54,33 +94,30 @@ class _HomeScreenState extends State<HomeScreen> {
                       : Colors.black87,
                 ),
               ),
+
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.search, size: 22),
+                    icon: const Icon(Icons.search, size: 22),
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.white70
                         : Colors.black54,
                     onPressed: () {},
                   ),
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 22),
+                    icon: const Icon(Icons.more_vert, size: 22),
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.grey.shade800
                         : Colors.white,
                     onSelected: (value) => _handleMenuSelection(value, context),
                     itemBuilder: (BuildContext context) => [
-                      // ... same menu items as above
                       PopupMenuItem(
                         value: 'discover',
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.explore_outlined,
-                              color: const Color(0xFF4CAFAB),
-                            ),
-                            SizedBox(width: 12),
-                            Text('Discover Connections'),
+                            Icon(Icons.explore_outlined, color: themeColor),
+                            const SizedBox(width: 12),
+                            const Text('Discover Connections'),
                           ],
                         ),
                       ),
@@ -88,22 +125,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         value: 'requests',
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.person_add_outlined,
-                              color: const Color(0xFF4CAFAB),
-                            ),
-                            SizedBox(width: 12),
-                            Text('Connection Requests'),
+                            Icon(Icons.person_add_outlined, color: themeColor),
+                            const SizedBox(width: 12),
+                            const Text('Connection Requests'),
                           ],
                         ),
                       ),
-                      PopupMenuDivider(),
+                      const PopupMenuDivider(),
                       PopupMenuItem(
                         value: 'logout',
                         child: Row(
                           children: [
                             Icon(Icons.logout, color: Colors.redAccent),
-                            SizedBox(width: 12),
+                            const SizedBox(width: 12),
                             Text(
                               'Logout',
                               style: TextStyle(color: Colors.redAccent),
@@ -119,7 +153,40 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      body: _screens[_currentIndex],
+
+      body: Column(
+        children: [
+          // Welcome message
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Text(
+                  'Welcome back, ',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white70
+                        : Colors.black54,
+                  ),
+                ),
+                Text(
+                  firstName,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: themeColor,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.waving_hand, color: themeColor, size: 18),
+              ],
+            ),
+          ),
+          // Your existing screen
+          Expanded(child: _screens[_currentIndex]),
+        ],
+      ),
 
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -195,21 +262,6 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Container(
                 padding: const EdgeInsets.all(6),
-                child: const Icon(Icons.camera_alt_outlined),
-              ),
-              activeIcon: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.desktop_mac),
-              ),
-              label: 'Status',
-            ),
-            BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(6),
                 child: const Icon(Icons.person_outline),
               ),
               activeIcon: Container(
@@ -232,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget? _buildFloatingActionButton(bool isDark) {
     switch (_currentIndex) {
-      case 0: // Groups
+      case 0: // Transport
         return FloatingActionButton(
           backgroundColor: themeColor,
           elevation: 4,
@@ -258,39 +310,6 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
 
-      case 2: // Status
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            FloatingActionButton(
-              mini: true,
-              backgroundColor: isDark
-                  ? Colors.grey.shade700
-                  : Colors.grey.shade300,
-              elevation: 2,
-              child: Icon(
-                Icons.edit,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
-              ),
-              onPressed: () {
-                // TODO: Implement status editing
-              },
-            ),
-            const SizedBox(height: 16),
-            FloatingActionButton(
-              backgroundColor: themeColor,
-              elevation: 4,
-              child: const Icon(
-                Icons.camera_alt,
-                color: Colors.white,
-                size: 28,
-              ),
-              onPressed: () {
-                // TODO: Implement camera for status
-              },
-            ),
-          ],
-        );
       default:
         return null;
     }

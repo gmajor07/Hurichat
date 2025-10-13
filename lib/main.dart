@@ -3,10 +3,11 @@ import 'package:hive_flutter/adapters.dart';
 import 'package:huruchat/firebase_options.dart';
 import 'package:huruchat/screens/auth/phone_screen.dart';
 import 'package:huruchat/screens/auth/register_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/chat/presence_service.dart';
-import 'screens/home.dart';
+import 'package:huruchat/screens/auth/login_screen.dart';
+import 'package:huruchat/screens/chat/presence_service.dart';
+import 'package:huruchat/screens/home.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'screens/theme/app_theme.dart';
 import 'welcome_screen.dart';
 
 final presenceService = PresenceService();
@@ -15,7 +16,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  //  Initialize Hive
   await Hive.initFlutter();
   await Hive.openBox('messages');
   presenceService.init();
@@ -31,20 +31,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'HURUchat App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 76, 175, 170),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true, // Enable Material 3 for better theming
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme, // ✅ Use custom theme
+      darkTheme: AppTheme.darkTheme,
       home: const WelcomeScreen(),
       routes: {
         '/welcome_screen': (context) => const WelcomeScreen(),

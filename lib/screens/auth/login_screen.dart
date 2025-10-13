@@ -23,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   // Email/Password login
+  /// 🔐 Login with Email & Password
   Future<void> _loginWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -50,13 +51,37 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("❌ $e")));
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No account found with this email.';
+          break;
+        case 'wrong-password':
+          message = 'Incorrect password. Please try again.';
+          break;
+        case 'invalid-email':
+          message = 'The email address is not valid.';
+          break;
+        case 'user-disabled':
+          message = 'This account has been disabled.';
+          break;
+        default:
+          message = 'Login failed. Please try again later.';
+      }
+
+      _showError(message);
+    } catch (_) {
+      _showError('An unexpected error occurred. Please try again.');
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text("❌ $message")));
   }
 
   // Google login

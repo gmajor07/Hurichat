@@ -41,6 +41,27 @@ class UsersListScreen extends StatelessWidget {
         .map((snapshot) => snapshot.docs.length);
   }
 
+  // Capitalize first letter
+  String capitalize(String name) {
+    if (name.isEmpty) return name;
+    return name[0].toUpperCase() + name.substring(1);
+  }
+
+  // Mark unread messages as read when chat is opened
+  Future<void> markMessagesAsRead(String chatId, String currentUserId) async {
+    final unreadSnapshot = await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .where('isRead', isEqualTo: false)
+        .where('receiverId', isEqualTo: currentUserId)
+        .get();
+
+    for (var doc in unreadSnapshot.docs) {
+      doc.reference.update({'isRead': true});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (currentUser == null) {
@@ -54,7 +75,6 @@ class UsersListScreen extends StatelessWidget {
         .doc(currentUser!.uid)
         .collection('connections');
 
-    // Only accepted connections
     return StreamBuilder<QuerySnapshot>(
       stream: connectionsCollection
           .where('status', isEqualTo: 'accepted')
@@ -70,7 +90,6 @@ class UsersListScreen extends StatelessWidget {
           return const Center(child: Text('No connections yet'));
         }
 
-        // Fetch user data for accepted connections
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
@@ -82,18 +101,16 @@ class UsersListScreen extends StatelessWidget {
             }
 
             final userDocs = usersSnapshot.data!.docs;
-
             if (userDocs.isEmpty) {
               return const Center(child: Text('No users found'));
             }
 
-            // Build list of chats with last message
             final chatItems = <Map<String, dynamic>>[];
 
             for (var userDoc in userDocs) {
               final userData = userDoc.data() as Map<String, dynamic>;
               final userId = userDoc.id;
-              final name = userData['name'] ?? 'No Name';
+              final name = capitalize(userData['name'] ?? 'No Name');
               final photoUrl = userData['photoUrl'] ?? '';
               final chatId = generateChatId(currentUser!.uid, userId);
 
@@ -105,7 +122,6 @@ class UsersListScreen extends StatelessWidget {
               });
             }
 
-            // Sort by last message (optional, async handled per item)
             return ListView.builder(
               itemCount: chatItems.length,
               itemBuilder: (context, index) {
@@ -180,7 +196,11 @@ class UsersListScreen extends StatelessWidget {
                                 ),
                             ],
                           ),
-                          onTap: () {
+                          onTap: () async {
+                            // Mark as read before opening chat
+                            await markMessagesAsRead(chatId, currentUser!.uid);
+
+                            // Navigate to chat
                             Navigator.push(
                               context,
                               MaterialPageRoute(
