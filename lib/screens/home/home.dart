@@ -1,13 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'connection/discovery_connection_screen.dart';
-import 'connection/connection_request.dart';
-import 'connection/connection_screen.dart';
-import 'huru/huru_screen.dart';
-import 'users_list_screen.dart';
-import 'transport_screen.dart';
-import 'user_account/account_screen.dart';
+import 'package:huruchat/screens/food/screen/food_screen.dart';
+import '../connection/discovery_connection_screen.dart';
+import '../connection/connection_request.dart';
+import '../connection/connection_screen.dart';
+import '../huru/huru_screen.dart';
+import '../users_list_screen.dart';
+import '../transport_screen.dart';
+import '../user_account/account_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Color themeColor = const Color(0xFF4CAFAB);
 
   final List<Widget> _screens = [
+    const FoodScreen(),
     const TransportScreen(),
     UsersListScreen(),
     const HuruScreen(),
@@ -85,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'HuriChat',
+                'HuruChat',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -97,13 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
               Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.search, size: 22),
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white70
-                        : Colors.black54,
-                    onPressed: () {},
-                  ),
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, size: 22),
                     color: Theme.of(context).brightness == Brightness.dark
@@ -214,6 +209,21 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
           items: [
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                child: const Icon(Icons.food_bank),
+              ),
+              activeIcon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.food_bank),
+              ),
+              label: 'Food',
+            ),
             BottomNavigationBarItem(
               icon: Container(
                 padding: const EdgeInsets.all(6),

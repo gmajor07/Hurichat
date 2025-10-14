@@ -5,7 +5,7 @@ import 'package:huruchat/screens/auth/phone_screen.dart';
 import 'package:huruchat/screens/auth/register_screen.dart';
 import 'package:huruchat/screens/auth/login_screen.dart';
 import 'package:huruchat/screens/chat/presence_service.dart';
-import 'package:huruchat/screens/home.dart';
+import 'package:huruchat/screens/home/home.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/theme/app_theme.dart';
 import 'welcome_screen.dart';

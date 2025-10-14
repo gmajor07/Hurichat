@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'complete_profile.dart';
-import '../home.dart';
+import '../home/home.dart';
 
 class PhoneAuthPage extends StatefulWidget {
   const PhoneAuthPage({super.key});
