@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'advanced_search_bar.dart';
 import 'chat/chat_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -80,27 +81,16 @@ class _UsersListScreenState extends State<UsersListScreen> {
     return Column(
       children: [
         // 👇 Add Search Bar Here
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Search user...',
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.grey.shade200,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            onChanged: (value) {
-              setState(() {
-                searchQuery = value.toLowerCase();
-              });
-            },
-          ),
+        // In your UsersListScreen build method:
+        AdvancedSearchBar(
+          hintText: "Search connections...",
+          onSearchChanged: (value) {
+            setState(() {
+              searchQuery = value.toLowerCase().trim();
+            });
+          },
+          autoFocus: false,
         ),
-
         // 👇 The rest of your existing logic wrapped in Expanded
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
@@ -147,7 +137,22 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
                   if (userDocs.isEmpty) {
                     return const Center(
-                      child: Text('No one match your search'),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'No matches found',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Try a different search term',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ],
+                      ),
                     );
                   }
 
