@@ -6,6 +6,7 @@ class AdvancedSearchBar extends StatefulWidget {
   final VoidCallback? onSearchTap;
   final bool autoFocus;
   final TextStyle? hintStyle;
+  final EdgeInsetsGeometry? margin;
 
   const AdvancedSearchBar({
     super.key,
@@ -14,6 +15,7 @@ class AdvancedSearchBar extends StatefulWidget {
     this.onSearchTap,
     this.autoFocus = false,
     this.hintStyle,
+    this.margin,
   });
 
   @override
@@ -44,39 +46,38 @@ class _AdvancedSearchBarState extends State<AdvancedSearchBar> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.3),
-          border: Border.all(color: colorScheme.outline),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search, color: Colors.grey),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                autofocus: widget.autoFocus,
-                decoration: InputDecoration(
-                  hintText: widget.hintText,
-                  hintStyle: widget.hintStyle,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onTap: widget.onSearchTap,
+      margin:
+          widget.margin ??
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        border: Border.all(color: colorScheme.outline),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              autofocus: widget.autoFocus,
+              decoration: InputDecoration(
+                hintText: widget.hintText,
+                hintStyle: widget.hintStyle,
+                border: InputBorder.none,
               ),
+              onTap: widget.onSearchTap,
             ),
-            if (_controller.text.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.clear, size: 20),
-                onPressed: _clearSearch,
-              ),
-          ],
-        ),
+          ),
+          if (_controller.text.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear, size: 20),
+              onPressed: _clearSearch,
+            ),
+        ],
       ),
     );
   }

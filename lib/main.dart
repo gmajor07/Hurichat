@@ -5,9 +5,10 @@ import 'package:huruchat/screens/auth/phone_screen.dart';
 import 'package:huruchat/screens/auth/register_screen.dart';
 import 'package:huruchat/screens/auth/login_screen.dart';
 import 'package:huruchat/screens/chat/presence_service.dart';
-import 'package:huruchat/screens/home/home.dart';
+import 'package:huruchat/screens/home/home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/theme/app_theme.dart';
+import 'screens/profile/account_screen.dart';
 import 'welcome_screen.dart';
 
 final presenceService = PresenceService();
@@ -40,6 +41,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
         '/phone': (context) => const PhoneAuthPage(),
+        '/account_settings': (context) => const AccountScreen(),
       },
     );
   }

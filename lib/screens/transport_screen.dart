@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'advanced_search_bar.dart';
 
 class TransportScreen extends StatefulWidget {
   const TransportScreen({super.key});
@@ -10,6 +11,7 @@ class TransportScreen extends StatefulWidget {
 
 class _TransportScreenState extends State<TransportScreen> {
   final user = FirebaseAuth.instance.currentUser;
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -22,26 +24,14 @@ class _TransportScreenState extends State<TransportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Search Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant.withOpacity(0.3),
-                border: Border.all(color: colorScheme.outline),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: "Where are you going? || Enter your route",
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  Icon(Icons.search, color: Colors.grey),
-                ],
-              ),
+            AdvancedSearchBar(
+              hintText: "Where are you going? || Enter your route",
+              onSearchChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase().trim();
+                });
+              },
+              autoFocus: false,
             ),
             const SizedBox(height: 20),
 

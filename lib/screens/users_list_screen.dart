@@ -81,9 +81,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
     return Column(
       children: [
         // 👇 Add Search Bar Here
-        // In your UsersListScreen build method:
+        // In UsersListScreen build method:
         AdvancedSearchBar(
-          hintText: "Search connections...",
+          hintText: "Search connections || Enter name",
           onSearchChanged: (value) {
             setState(() {
               searchQuery = value.toLowerCase().trim();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/search_bar.dart';
+import '../../advanced_search_bar.dart';
 import '../widgets/food_category_chip.dart';
 import '../widgets/section_header.dart';
 import '../widgets/food_card.dart';
@@ -94,13 +94,14 @@ class _FoodScreenState extends State<FoodScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 🔍 Search Bar
-            FoodSearchBar(
-              controller: _searchController,
-              onChanged: (value) {
+            AdvancedSearchBar(
+              hintText: "What are you going to eat? || Enter your food",
+              onSearchChanged: (value) {
                 setState(() {
-                  _searchQuery = value;
+                  _searchQuery = value.toLowerCase().trim();
                 });
               },
+              autoFocus: false,
             ),
             const SizedBox(height: 20),
 
