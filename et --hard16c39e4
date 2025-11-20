@@ -1,0 +1,13 @@
+[33m16c39e4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: reset: moving to origin/main
+[33m16c39e4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{1}: commit: major changes
+[33m495eaff[m HEAD@{2}: commit: improved search functions
+[33mcc09f8b[m HEAD@{3}: commit: added food and search functions
+[33mff7c04d[m HEAD@{4}: commit: commit phase 1 changes
+[33m0f136d1[m HEAD@{5}: commit: new improvements
+[33m007bbb2[m HEAD@{6}: commit: decoration and styling
+[33ma79409a[m HEAD@{7}: commit: major improvements
+[33m482eab0[m HEAD@{8}: commit: the major changes
+[33mbb9fc79[m HEAD@{9}: commit: updated functionalities
+[33m846d2fe[m HEAD@{10}: commit: first code
+[33m9e13a9e[m HEAD@{11}: Branch: renamed refs/heads/master to refs/heads/main
+[33m9e13a9e[m HEAD@{13}: commit (initial): first commit

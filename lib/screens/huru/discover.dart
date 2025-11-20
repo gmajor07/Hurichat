@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:huruchat/screens/transport_screen.dart';
-import '../shopping/screens/shopping_screen.dart';
+
 import '../theme/app_theme.dart';
 
-class HuruScreen extends StatelessWidget {
-  const HuruScreen({super.key});
+class DiscoverScreen extends StatelessWidget {
+  const DiscoverScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -18,90 +17,14 @@ class HuruScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Top Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Check Balance',
-                  style: TextStyle(color: accent, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // ✅ Quick Actions
-            _buildSectionTitle('Quick Actions'),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              children: const [
-                _ActionButton(icon: Icons.qr_code, label: 'Scan & Pay'),
-                _ActionButton(
-                  icon: Icons.account_balance_wallet,
-                  label: 'Collect',
-                ),
-                _ActionButton(icon: Icons.sync_alt, label: 'Transfer'),
-                _ActionButton(icon: Icons.download, label: 'Deposit'),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // ✅ Services
-            _buildSectionTitle('Services'),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              children: [
-                _ActionButton(
-                  icon: Icons.car_rental_outlined,
-                  label: 'Transport',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TransportScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _ActionButton(
-                  icon: Icons.shopping_bag,
-                  label: 'Shopping',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ShoppingScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const _ActionButton(
-                  icon: Icons.confirmation_number,
-                  label: 'Ticket',
-                ),
-                const _ActionButton(icon: Icons.receipt, label: 'Bill Payment'),
-              ],
-            ),
-            const SizedBox(height: 24),
-
             // ✅ Account & Settings Section
-            _buildSectionTitle('Account & Settings'),
+            _buildSectionTitle('Discover'),
             const SizedBox(height: 12),
 
             _buildSettingsTile(
               context,
               icon: Icons.fastfood_outlined,
-              title: 'My Cart Food',
+              title: 'Status',
               color: primary,
               routeName: '/my_cart_food',
             ),
@@ -109,7 +32,7 @@ class HuruScreen extends StatelessWidget {
             _buildSettingsTile(
               context,
               icon: Icons.shopping_cart_outlined,
-              title: 'My Shopping Cart',
+              title: 'Video and channel',
               color: primary,
               routeName: '/my_shopping_cart',
             ),
@@ -117,7 +40,7 @@ class HuruScreen extends StatelessWidget {
             _buildSettingsTile(
               context,
               icon: Icons.support_agent,
-              title: 'Customer Support',
+              title: 'Search',
               color: primary,
               routeName: '/customer_support',
             ),
@@ -125,7 +48,7 @@ class HuruScreen extends StatelessWidget {
             _buildSettingsTile(
               context,
               icon: Icons.card_giftcard,
-              title: 'Coupon & Offer',
+              title: 'Scan',
               color: primary,
               routeName: '/coupons',
             ),
@@ -133,7 +56,7 @@ class HuruScreen extends StatelessWidget {
             _buildSettingsTile(
               context,
               icon: Icons.settings,
-              title: 'Settings',
+              title: 'Programs',
               color: primary,
               routeName: '/account_settings',
             ),
@@ -174,6 +97,7 @@ class HuruScreen extends StatelessWidget {
         if (isLogout) {
           await FirebaseAuth.instance.signOut();
           Navigator.pushNamedAndRemoveUntil(
+            // ignore: use_build_context_synchronously
             context,
             '/login',
             (route) => false,

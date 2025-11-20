@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../user_account/update_profile_page.dart';
 import 'date_formatter.dart';
 import 'info_row.dart';
 import 'profile_actions.dart';
 import 'profile_header.dart';
+import 'update_user_type.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -97,12 +99,38 @@ class _AccountScreenState extends State<AccountScreen> {
                   children: [
                     ProfileHeader(userData: userData),
                     const SizedBox(height: 30),
+
                     _buildPersonalInfoSection(context),
                     const SizedBox(height: 30),
+
                     ProfileActions(
                       onUpdateProfile: _openUpdateProfile,
                       onSignOut: _signOut,
                     ),
+
+                    const SizedBox(height: 20),
+
+                    // ⭐ SELLER BUTTON
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const BecomeSellerPage(),
+                          ),
+                        ).then((updated) {
+                          if (updated == true) {
+                            _fetchUserData(); // refresh role change
+                          }
+                        });
+                      },
+                      child: Text(
+                        (userData?['role'] == 'seller')
+                            ? "You are a Seller"
+                            : "Become a Seller",
+                      ),
+                    ),
+
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -126,34 +154,40 @@ class _AccountScreenState extends State<AccountScreen> {
           ),
         ),
         const SizedBox(height: 16),
+
         InfoRow(
           icon: Icons.person_outline,
           title: 'Full Name',
           value: userData?['name'] ?? 'Not set',
         ),
+
         InfoRow(
           icon: Icons.phone_iphone_outlined,
           title: 'Phone Number',
           value: userData?['phone'] ?? 'Not set',
         ),
+
         if (userData?['gender'] != null)
           InfoRow(
             icon: Icons.transgender,
             title: 'Gender',
             value: userData!['gender'] as String,
           ),
+
         if (userData?['age'] != null)
           InfoRow(
             icon: Icons.cake_outlined,
             title: 'Age',
             value: '${userData!['age']} years old',
           ),
+
         if (userData?['birthDate'] != null)
           InfoRow(
             icon: Icons.calendar_today_outlined,
             title: 'Birth Date',
             value: DateFormatter.formatDate(userData!['birthDate']),
           ),
+
         InfoRow(
           icon: Icons.circle,
           title: 'Status',

@@ -3,10 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // Screens
+import '../huru/discover.dart';
 import '../users_list_screen.dart';
 import '../food/screen/food_screen.dart';
 import '../shopping/screens/shopping_screen.dart';
-import '../transport_screen.dart';
 import '../huru/huru_screen.dart';
 
 // Parts
@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     UsersListScreen(), // Chats (start)
     const FoodScreen(),
     const ShoppingScreen(),
-    const TransportScreen(),
+    const DiscoverScreen(),
     const HuruScreen(),
   ];
 
@@ -143,13 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                Text(
-                  'Welcome back, ',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDark ? Colors.white70 : Colors.black54,
-                  ),
-                ),
                 Text(
                   firstName,
                   style: TextStyle(

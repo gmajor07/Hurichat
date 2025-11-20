@@ -30,9 +30,9 @@ BottomNavigationBar buildBottomNavigationBar({
       ),
       BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Shopping'),
       BottomNavigationBarItem(
-        icon: Icon(Icons.car_rental_outlined),
-        activeIcon: Icon(Icons.car_rental),
-        label: 'Transport',
+        icon: Icon(Icons.lightbulb_outline),
+        activeIcon: Icon(Icons.lightbulb),
+        label: 'Discover',
       ),
       BottomNavigationBarItem(
         icon: Icon(Icons.person_outline),
