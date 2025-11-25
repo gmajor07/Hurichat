@@ -3,9 +3,67 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:huruchat/screens/transport_screen.dart';
 import '../shopping/screens/shopping_screen.dart';
 import '../theme/app_theme.dart';
+// ✅ IMPORTANT: Import the SellerProductsScreen for direct navigation
+import '../shopping/screens/seller_dashboard_screen.dart';
 
 class HuruScreen extends StatelessWidget {
   const HuruScreen({super.key});
+
+  // --- Helpers ---
+  Widget _buildSectionTitle(String title) => Text(
+    title,
+    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+  );
+
+  Widget _buildSettingsTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Color color,
+    String? routeName,
+    bool isLogout = false,
+    bool isSellerDashboard = false, // ✅ NEW FLAG for Seller Dashboard
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(title),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: () async {
+        final user = FirebaseAuth.instance.currentUser;
+
+        if (isLogout) {
+          await FirebaseAuth.instance.signOut();
+          Navigator.pushReplacementNamed(context, '/login');
+          return;
+        }
+
+        // 🔑 FIX LOGIC: Direct navigation to Seller Dashboard with UID
+        if (isSellerDashboard) {
+          if (user == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Login required to view dashboard."),
+              ),
+            );
+            return;
+          }
+
+          // Use direct navigation and pass the authenticated user's ID
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SellerProductsScreen(sellerId: user.uid),
+            ),
+          );
+          return;
+        }
+
+        if (routeName != null) {
+          Navigator.pushNamed(context, routeName);
+        }
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +76,7 @@ class HuruScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Top Row
+            // Top Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -30,7 +88,7 @@ class HuruScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // ✅ Quick Actions
+            // Quick Actions
             _buildSectionTitle('Quick Actions'),
             const SizedBox(height: 12),
             GridView.count(
@@ -51,7 +109,7 @@ class HuruScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // ✅ Services
+            // Services
             _buildSectionTitle('Services'),
             const SizedBox(height: 12),
             GridView.count(
@@ -94,7 +152,7 @@ class HuruScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // ✅ Account & Settings Section
+            // Account & Settings Section
             _buildSectionTitle('Account & Settings'),
             const SizedBox(height: 12),
 
@@ -140,6 +198,24 @@ class HuruScreen extends StatelessWidget {
             const Divider(),
             _buildSettingsTile(
               context,
+              icon: Icons.shop,
+              title: 'Seller Settings',
+              color: primary,
+              routeName: '/seller_screen',
+            ),
+            const Divider(),
+            // ✅ FIXED NAVIGATION: Using flag and direct push
+            _buildSettingsTile(
+              context,
+              icon: Icons.store_mall_directory, // Updated icon
+              title: 'My Seller Dashboard',
+              color: primary,
+              isSellerDashboard: true, // 🔑 Trigger the fix logic
+              // routeName: '/seller_dashboard_screen', // ❌ DEPRECATED ROUTE
+            ),
+            const Divider(),
+            _buildSettingsTile(
+              context,
               icon: Icons.logout,
               title: 'Logout',
               color: Colors.redAccent,
@@ -149,42 +225,6 @@ class HuruScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  // --- Helpers ---
-  Widget _buildSectionTitle(String title) => Text(
-    title,
-    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-  );
-
-  Widget _buildSettingsTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Color color,
-    String? routeName,
-    bool isLogout = false,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(title),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-      onTap: () async {
-        if (isLogout) {
-          await FirebaseAuth.instance.signOut();
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/login',
-            (route) => false,
-          );
-          return;
-        }
-
-        if (routeName != null) {
-          Navigator.pushNamed(context, routeName);
-        }
-      },
     );
   }
 }

@@ -12,19 +12,42 @@ class BecomeSellerPage extends StatefulWidget {
 class _BecomeSellerPageState extends State<BecomeSellerPage> {
   bool _loading = false;
 
-  Future<void> _setSeller() async {
-    setState(() => _loading = true);
+  // Available services
+  final Map<String, bool> services = {
+    "transport": false,
+    "shopping": false,
+    "food": false,
+  };
 
+  Future<void> _saveSeller() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    // Collect selected services
+    final selectedServices = services.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+
+    if (selectedServices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select at least one service.")),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
 
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'role': 'seller',
+        "role": "seller",
+        "services": selectedServices,
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("You are now a seller 🎉")),
+          const SnackBar(
+            content: Text("You are now a seller, services saved 🎉"),
+          ),
         );
         Navigator.pop(context, true);
       }
@@ -47,21 +70,42 @@ class _BecomeSellerPageState extends State<BecomeSellerPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Upgrade your account",
+              "Choose Services to Offer",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
             const Text(
-              "As a seller, you will be able to upload products, manage your store, and reach customers.",
+              "Select the services that you want to offer to customers.",
               style: TextStyle(fontSize: 16),
             ),
+            const SizedBox(height: 20),
+
+            // SERVICES CHECKBOXES
+            ...services.keys.map((service) {
+              return CheckboxListTile(
+                title: Text(
+                  service[0].toUpperCase() + service.substring(1),
+                  style: const TextStyle(fontSize: 16),
+                ),
+                value: services[service],
+                onChanged: (value) {
+                  setState(() {
+                    services[service] = value ?? false;
+                  });
+                },
+              );
+            }).toList(),
+
             const SizedBox(height: 30),
 
             _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(
-                    onPressed: _setSeller,
-                    child: const Text("Upgrade to Seller"),
+                    onPressed: _saveSeller,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 45),
+                    ),
+                    child: const Text("Save & Become Seller"),
                   ),
           ],
         ),

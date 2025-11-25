@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../advanced_search_bar.dart';
 import '../models/product_item.dart';
 import '../constants/shopping_constants.dart';
+import 'product_details_screen.dart';
 import 'widgets/shopping/category_chip.dart';
 import 'widgets/shopping/product_grid.dart';
 import 'widgets/shopping/section_header.dart';
@@ -58,8 +59,19 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   }
 
   void _onProductTap(ProductItem product) {
-    // Navigate to product details
-    print('Product tapped: ${product.name}');
+    // If sample product → open your normal details screen
+    if (product.id.startsWith("sample_")) {
+      print("Sample product tapped");
+      return;
+    }
+
+    // If Firebase product → navigate to Firebase details screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductDetailsScreen(productId: product.id),
+      ),
+    );
   }
 
   void _onAddToCart(ProductItem product) {
