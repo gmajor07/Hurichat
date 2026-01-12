@@ -29,17 +29,18 @@ class ShoppingSectionHeader extends StatelessWidget {
               color: textColor,
             ),
           ),
-          GestureDetector(
-            onTap: onSeeMoreTap,
-            child: Text(
-              ShoppingConstants.seeMoreText,
-              style: TextStyle(
-                fontSize: 14,
-                color: ShoppingConstants.accentColor,
-                fontWeight: FontWeight.w500,
+          if (onSeeMoreTap != null)
+            GestureDetector(
+              onTap: onSeeMoreTap,
+              child: Text(
+                ShoppingConstants.seeMoreText,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: ShoppingConstants.accentColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

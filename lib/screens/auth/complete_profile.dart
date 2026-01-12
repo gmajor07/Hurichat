@@ -13,7 +13,9 @@ class ProfileCompletionScreen extends StatefulWidget {
       _ProfileCompletionScreenState();
 }
 
-class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
+// 1. ADD TickerProviderStateMixin
+class _ProfileCompletionScreenState extends State<ProfileCompletionScreen>
+    with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   File? _imageFile;
@@ -30,6 +32,33 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     'Other',
     'Prefer not to say',
   ];
+
+  // 2. Animation controller and animation for the pulsating dots
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(); // Start repeating the animation
+
+    // Define the base animation scale
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -70,12 +99,17 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
 
     String? photoUrl;
     if (_imageFile != null) {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profile_pics')
-          .child('${user.uid}.jpg');
-      await ref.putFile(_imageFile!);
-      photoUrl = await ref.getDownloadURL();
+      try {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('profile_pics')
+            .child('${user.uid}.jpg');
+        await ref.putFile(_imageFile!);
+        photoUrl = await ref.getDownloadURL();
+      } catch (e) {
+        _showSnack("Failed to upload profile picture.");
+        // Continue without photo URL if upload fails
+      }
     }
 
     // Calculate age from selected date
@@ -89,21 +123,26 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       }
     }
 
-    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-      'name': _nameController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'gender': _selectedGender,
-      'birthDate': _selectedDate,
-      'age': age,
-      'photoUrl': _imageFile != null ? photoUrl : user.photoURL,
-      'status': 'active',
-      'profileCompleted': true,
-      'completedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'gender': _selectedGender,
+        'birthDate': _selectedDate,
+        'age': age,
+        // Use the new photoUrl if available, otherwise fallback to existing or null
+        'photoUrl': photoUrl ?? user.photoURL,
+        'status': 'active',
+        'profileCompleted': true,
+        'completedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-    setState(() => _loading = false);
-
-    Navigator.pushReplacementNamed(context, '/home');
+      if (mounted) Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      _showSnack("Failed to save profile data.");
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _showSnack(String message) {
@@ -129,6 +168,51 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: themeColor, width: 1.3),
       ),
+    );
+  }
+
+  // 3. Animated Loading Indicator Widget (Pulsing Dots)
+  Widget _buildLoadingIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            // Define scale based on animation for staggered effect
+            final dot1Scale = _animation.value;
+            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
+            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
+
+            const dot = Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.0),
+              child: CircleAvatar(radius: 4, backgroundColor: Colors.white),
+            );
+
+            return Row(
+              children: [
+                Transform.scale(scale: dot1Scale, child: dot),
+                Transform.scale(scale: dot2Scale, child: dot),
+                Transform.scale(scale: dot3Scale, child: dot),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -298,7 +382,12 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                   items: _genders.map((String gender) {
                     return DropdownMenuItem<String>(
                       value: gender,
-                      child: Text(gender),
+                      child: Text(
+                        gender,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
                     );
                   }).toList(),
                 ),
@@ -356,7 +445,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                     ),
                   ),
                   child: _loading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? _buildLoadingIndicator() // 4. REPLACED CircularProgressIndicator
                       : const Text(
                           'Complete Profile',
                           style: TextStyle(

@@ -16,8 +16,9 @@ class ProductGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Increased height to fit the new, taller ProductCard design
     return SizedBox(
-      height: 170,
+      height: 230, // Adjusted from 170 to 230
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: products.length,
@@ -26,6 +27,8 @@ class ProductGrid extends StatelessWidget {
           return ProductCard(
             product: product,
             onTap: onProductTap != null ? () => onProductTap!(product) : null,
+            // We keep the onAddToCart handler in the ProductCard wrapper,
+            // but it's now visually removed from the card itself.
             onAddToCart: onAddToCart != null
                 ? () => onAddToCart!(product)
                 : null,

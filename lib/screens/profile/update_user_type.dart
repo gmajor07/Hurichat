@@ -41,6 +41,7 @@ class _BecomeSellerPageState extends State<BecomeSellerPage> {
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         "role": "seller",
         "services": selectedServices,
+        "sellerStatus": "active",
       });
 
       if (mounted) {

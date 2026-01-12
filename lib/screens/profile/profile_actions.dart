@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 class ProfileActions extends StatelessWidget {
   final VoidCallback onUpdateProfile;
+  final VoidCallback onOrderHistory;
   final VoidCallback onSignOut;
   static const Color themeColor = Color(0xFF4CAFAB);
 
   const ProfileActions({
     super.key,
     required this.onUpdateProfile,
+    required this.onOrderHistory,
     required this.onSignOut,
   });
 
@@ -23,6 +25,30 @@ class ProfileActions extends StatelessWidget {
             icon: const Icon(Icons.edit, color: Colors.white),
             label: const Text(
               'Update Profile',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: onOrderHistory,
+            icon: const Icon(Icons.receipt_long, color: Colors.white),
+            label: const Text(
+              'Order History',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.white,

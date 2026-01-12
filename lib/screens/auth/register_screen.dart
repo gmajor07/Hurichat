@@ -10,20 +10,52 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
   final Color themeColor = const Color(0xFF4CAFAB);
+
+  // Animation controller and animation for the pulsating dots
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the animation controller for the pulsating dots
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+
+    // Define the base animation scale
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
 
   Future<void> _registerUser() async {
     final email = _emailController.text.trim();
@@ -53,18 +85,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       _showSnackBar('Account created successfully!');
-      Navigator.pushReplacementNamed(context, '/login');
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
     } on FirebaseAuthException catch (e) {
       _showSnackBar(e.message ?? 'Registration failed');
     } finally {
-      setState(() => _isLoading = false);
+      if(mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
     try {
       final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return;
+      if (googleUser == null) {
+        if(mounted) setState(() => _isLoading = false);
+        return;
+      }
       final googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
@@ -74,9 +112,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await _auth.signInWithCredential(credential);
       _showSnackBar('Signed in with Google');
-      Navigator.pushReplacementNamed(context, '/home');
+      if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       _showSnackBar('Google Sign-In failed');
+    } finally {
+      if(mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -107,9 +149,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  // Animated Loading Indicator Widget (Pulsing Dots)
+  Widget _buildLoadingIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            // Define scale based on animation for staggered effect
+            final dot1Scale = _animation.value;
+            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0).animate(
+              CurvedAnimation(
+                parent: _animationController,
+                curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
+              ),
+            ).value;
+            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0).animate(
+              CurvedAnimation(
+                parent: _animationController,
+                curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
+              ),
+            ).value;
+
+            const dot = Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.0),
+              child: CircleAvatar(radius: 4, backgroundColor: Colors.white),
+            );
+
+            return Row(
+              children: [
+                Transform.scale(scale: dot1Scale, child: dot),
+                Transform.scale(scale: dot2Scale, child: dot),
+                Transform.scale(scale: dot3Scale, child: dot),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Calculate space needed to push content down (15% of the screen height)
+    final verticalSpace = MediaQuery.of(context).size.height * 0.15;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
@@ -142,7 +229,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
-              const SizedBox(height: 35),
+
+              // Apply large vertical space to push content down
+              SizedBox(height: verticalSpace),
 
               // Email
               TextField(
@@ -157,22 +246,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration:
-                    _inputDecoration(
-                      'Enter your password',
-                      Icons.lock_outline,
-                    ).copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.grey[600],
-                        ),
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                      ),
+                _inputDecoration(
+                  'Enter your password',
+                  Icons.lock_outline,
+                ).copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey[600],
                     ),
+                    onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -181,23 +270,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
                 decoration:
-                    _inputDecoration(
-                      'Confirm your password',
-                      Icons.lock_outline,
-                    ).copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.grey[600],
-                        ),
-                        onPressed: () => setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        ),
-                      ),
+                _inputDecoration(
+                  'Confirm your password',
+                  Icons.lock_outline,
+                ).copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey[600],
                     ),
+                    onPressed: () => setState(
+                          () => _obscureConfirmPassword =
+                      !_obscureConfirmPassword,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 28),
 
@@ -214,15 +303,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? _buildLoadingIndicator() // Animated Dots Loader
                       : const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                    'Create Account',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
 
@@ -262,7 +351,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _socialIcon('assets/images/google.png', _signInWithGoogle),
                   const SizedBox(width: 28),
                   _socialIcon('assets/images/phone.png', () {
-                    Navigator.pushNamed(context, '/phone');
+                    if (mounted) Navigator.pushNamed(context, '/phone');
                   }),
                 ],
               ),

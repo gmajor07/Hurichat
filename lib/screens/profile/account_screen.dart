@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../user_account/update_profile_page.dart';
+import '../shopping/screens/order_history_screen.dart';
 import 'date_formatter.dart';
 import 'info_row.dart';
 import 'profile_actions.dart';
@@ -74,6 +75,70 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  void _openOrderHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+    );
+  }
+
+  void _manageSellerAccount() {
+    final currentStatus = userData?['sellerStatus'] ?? 'inactive';
+    bool isActive = currentStatus == 'active';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Manage Seller Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Toggle your seller account status:'),
+              SwitchListTile(
+                title: Text(isActive ? 'Active' : 'Inactive'),
+                value: isActive,
+                onChanged: (value) {
+                  setState(() => isActive = value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user!.uid)
+                      .update({'sellerStatus': isActive ? 'active' : 'inactive'});
+                  Navigator.pop(context);
+                  await _fetchUserData();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Seller account ${isActive ? 'activated' : 'deactivated'}.',
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to update: $e')),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -105,31 +170,34 @@ class _AccountScreenState extends State<AccountScreen> {
 
                     ProfileActions(
                       onUpdateProfile: _openUpdateProfile,
+                      onOrderHistory: _openOrderHistory,
                       onSignOut: _signOut,
                     ),
 
                     const SizedBox(height: 20),
 
-                    // ⭐ SELLER BUTTON
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const BecomeSellerPage(),
-                          ),
-                        ).then((updated) {
-                          if (updated == true) {
-                            _fetchUserData(); // refresh role change
-                          }
-                        });
-                      },
-                      child: Text(
-                        (userData?['role'] == 'seller')
-                            ? "You are a Seller"
-                            : "Become a Seller",
+                    // ⭐ SELLER SECTION
+                    if (userData?['role'] != 'seller')
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const BecomeSellerPage(),
+                            ),
+                          ).then((updated) {
+                            if (updated == true) {
+                              _fetchUserData(); // refresh role change
+                            }
+                          });
+                        },
+                        child: const Text("Become a Seller"),
+                      )
+                    else
+                      ElevatedButton(
+                        onPressed: _manageSellerAccount,
+                        child: const Text("Manage Seller Account"),
                       ),
-                    ),
 
                     const SizedBox(height: 20),
                   ],

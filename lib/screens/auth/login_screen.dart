@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'complete_profile.dart';
 import '../home/home_screen.dart';
@@ -14,13 +15,43 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+// 1. ADD TickerProviderStateMixin
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailCtl = TextEditingController();
   final _passwordCtl = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _obscure = true;
   bool _loading = false;
+
+  // 2. Animation controller and animation for the pulsating dots
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+  final themeColor = const Color(0xFF497A72); // Defined here for use in methods
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+
+    // Define the animation: goes from 0.5 (smaller) to 1.0 (larger) and back
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _emailCtl.dispose();
+    _passwordCtl.dispose();
+    super.dispose();
+  }
 
   // Email/Password login
   /// 🔐 Login with Email & Password
@@ -41,15 +72,19 @@ class _LoginScreenState extends State<LoginScreen> {
           .get();
 
       if (!doc.exists || !(doc.data()?['name']?.isNotEmpty ?? false)) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+          );
+        }
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message;
@@ -74,7 +109,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (_) {
       _showError('An unexpected error occurred. Please try again.');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -89,13 +126,26 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       setState(() => _loading = true);
 
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (kDebugMode) print('🔄 Starting Google Sign-In...');
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+      );
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
       if (googleUser == null) {
+        if (kDebugMode) print('❌ Google Sign-In was cancelled by user');
         setState(() => _loading = false);
         return;
       }
 
       final googleAuth = await googleUser.authentication;
+
+      if (googleAuth.idToken == null || googleAuth.accessToken == null) {
+        throw Exception('Failed to get authentication tokens');
+      }
+
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
@@ -104,35 +154,95 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await _auth.signInWithCredential(credential);
       final user = result.user;
 
+      if (user == null) {
+        throw Exception('Failed to get user from Firebase');
+      }
+
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user!.uid)
+          .doc(user.uid)
           .get();
 
       if (!doc.exists || !(doc.data()?['name']?.isNotEmpty ?? false)) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+          );
+        }
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("❌ $e")));
+      if (kDebugMode) print('❌ Google Sign-In Error: $e');
+
+      // Show error to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("❌ Google Sign-In Error: $e"),
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  // 3. NEW: Animated Loading Indicator Widget
+  Widget _buildLoadingIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            // Define scale based on animation for staggered effect
+            final dot1Scale = _animation.value;
+            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
+            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
+
+            const dot = Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.0),
+              child: CircleAvatar(radius: 4, backgroundColor: Colors.white),
+            );
+
+            return Row(
+              children: [
+                Transform.scale(scale: dot1Scale, child: dot),
+                Transform.scale(scale: dot2Scale, child: dot),
+                Transform.scale(scale: dot3Scale, child: dot),
+              ],
+            );
+          },
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final themeColor = const Color(0xFF497A72);
     final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final fieldFillColor = isDark
@@ -285,14 +395,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             elevation: 0,
                           ),
                           child: _loading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
+                              ? _buildLoadingIndicator() // 4. REPLACED CircularProgressIndicator
                               : const Text(
                                   "Login",
                                   style: TextStyle(

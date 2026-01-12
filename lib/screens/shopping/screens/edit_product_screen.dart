@@ -28,7 +28,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     super.initState();
     final p = widget.product;
     _nameController = TextEditingController(text: p.name);
-    _priceController = TextEditingController(text: p.price);
+    _priceController = TextEditingController(text: p.price.toString());
     _categoryController = TextEditingController(text: p.category);
     _subCategoryController = TextEditingController(text: p.subCategory);
     _conditionController = TextEditingController(text: p.condition);
@@ -45,14 +45,20 @@ class _EditProductScreenState extends State<EditProductScreen> {
       final updatedProduct = FirebaseProduct(
         id: widget.product.id,
         name: _nameController.text.trim(),
-        price: _priceController.text.trim(),
+        images: widget.product.images.isNotEmpty ? widget.product.images : [_imageUrlController.text.trim()],
+        price: double.tryParse(_priceController.text.trim()) ?? 0.0,
         category: _categoryController.text.trim(),
         subCategory: _subCategoryController.text.trim(),
         condition: _conditionController.text.trim(),
         sellerId: widget.product.sellerId,
         description: _descriptionController.text.trim(),
-        // NOTE: The imageUrl here must be manually re-entered/verified by the user
-        imageUrl: _imageUrlController.text.trim(),
+        quantity: widget.product.quantity,
+        location: widget.product.location,
+        deliveryOptions: widget.product.deliveryOptions,
+        sellerType: widget.product.sellerType,
+        soldCount: widget.product.soldCount,
+        discountPrice: widget.product.discountPrice,
+        discountDescription: widget.product.discountDescription,
       );
 
       await FirebaseFirestore.instance

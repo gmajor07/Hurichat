@@ -11,7 +11,9 @@ class PhoneAuthPage extends StatefulWidget {
   State<PhoneAuthPage> createState() => _PhoneAuthPageState();
 }
 
-class _PhoneAuthPageState extends State<PhoneAuthPage> {
+// 1. ADD TickerProviderStateMixin
+class _PhoneAuthPageState extends State<PhoneAuthPage>
+    with SingleTickerProviderStateMixin {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
@@ -21,6 +23,33 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
   bool _loading = false;
 
   final Color themeColor = const Color(0xFF4CAFAB);
+
+  // 2. Animation controller and animation for the pulsating dots
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(); // Start repeating the animation
+
+    // Define the base animation scale
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _phoneController.dispose();
+    _otpController.dispose();
+    super.dispose();
+  }
 
   // Step 1: Send OTP
   Future<void> _verifyPhone() async {
@@ -32,18 +61,22 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
       verificationCompleted: (PhoneAuthCredential credential) async {
         await _auth.signInWithCredential(credential);
         _showSnack("✅ Logged in automatically!");
+        // We typically handle navigation after auto-login successful
+        if (mounted) _navigateToNextScreen();
       },
       verificationFailed: (FirebaseAuthException e) {
         _showSnack("❌ Verification failed: ${e.message}");
-        setState(() => _loading = false);
+        if (mounted) setState(() => _loading = false);
       },
       codeSent: (String verificationId, int? resendToken) {
-        setState(() {
-          _otpSent = true;
-          _verificationId = verificationId;
-          _loading = false;
-        });
-        _showSnack("📩 OTP sent! Enter the code.");
+        if (mounted) {
+          setState(() {
+            _otpSent = true;
+            _verificationId = verificationId;
+            _loading = false;
+          });
+          _showSnack("📩 OTP sent! Enter the code.");
+        }
       },
       codeAutoRetrievalTimeout: (String verificationId) {
         _verificationId = verificationId;
@@ -54,6 +87,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
   // Step 2: Verify OTP
   Future<void> _verifyOTP() async {
     if (_otpController.text.trim().isEmpty) return;
+    setState(() => _loading = true);
 
     try {
       final credential = PhoneAuthProvider.credential(
@@ -62,28 +96,36 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
       );
 
       await _auth.signInWithCredential(credential);
-
-      final user = _auth.currentUser;
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .get();
-
-      if (!doc.exists || !(doc.data()?['name']?.isNotEmpty ?? false)) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => ProfileCompletionScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-
       _showSnack("✅ Logged in successfully!");
+
+      if (mounted) _navigateToNextScreen();
     } catch (e) {
       _showSnack("❌ Error: $e");
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // Helper to check profile completion and navigate
+  Future<void> _navigateToNextScreen() async {
+    final user = _auth.currentUser;
+    if (user == null || !mounted) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists || !(doc.data()?['name']?.isNotEmpty ?? false)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     }
   }
 
@@ -108,6 +150,51 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: themeColor, width: 1.3),
       ),
+    );
+  }
+
+  // 3. Animated Loading Indicator Widget (Pulsing Dots)
+  Widget _buildLoadingIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            // Define scale based on animation for staggered effect
+            final dot1Scale = _animation.value;
+            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
+            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
+
+            const dot = Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.0),
+              child: CircleAvatar(radius: 4, backgroundColor: Colors.white),
+            );
+
+            return Row(
+              children: [
+                Transform.scale(scale: dot1Scale, child: dot),
+                Transform.scale(scale: dot2Scale, child: dot),
+                Transform.scale(scale: dot3Scale, child: dot),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -172,7 +259,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                       ),
                     ),
                     child: _loading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? _buildLoadingIndicator() // 4. REPLACED CircularProgressIndicator
                         : const Text(
                             'Send OTP',
                             style: TextStyle(
@@ -209,7 +296,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                       ),
                     ),
                     child: _loading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? _buildLoadingIndicator() // 4. REPLACED CircularProgressIndicator
                         : const Text(
                             'Verify OTP',
                             style: TextStyle(
@@ -223,7 +310,9 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                 const SizedBox(height: 20),
 
                 TextButton(
-                  onPressed: _verifyPhone,
+                  onPressed: _loading
+                      ? null
+                      : _verifyPhone, // Disable resend while loading
                   child: Text(
                     'Resend OTP',
                     style: TextStyle(

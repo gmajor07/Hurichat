@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:huruchat/screens/transport_screen.dart';
 import '../shopping/screens/shopping_screen.dart';
 import '../theme/app_theme.dart';
@@ -23,6 +24,7 @@ class HuruScreen extends StatelessWidget {
     String? routeName,
     bool isLogout = false,
     bool isSellerDashboard = false, // ✅ NEW FLAG for Seller Dashboard
+    bool isSellerSettings = false, // ✅ NEW FLAG for Seller Settings
   }) {
     return ListTile(
       leading: Icon(icon, color: color),
@@ -48,6 +50,28 @@ class HuruScreen extends StatelessWidget {
             return;
           }
 
+          // Check if user is an active seller
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
+            final userData = userDoc.data();
+            if (userData?['role'] != 'seller' || userData?['sellerStatus'] != 'active') {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("You must be an active seller to access the dashboard."),
+                ),
+              );
+              return;
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Error checking seller status: $e")),
+            );
+            return;
+          }
+
           // Use direct navigation and pass the authenticated user's ID
           Navigator.push(
             context,
@@ -55,6 +79,44 @@ class HuruScreen extends StatelessWidget {
               builder: (context) => SellerProductsScreen(sellerId: user.uid),
             ),
           );
+          return;
+        }
+
+        // 🔑 CHECK for Seller Settings
+        if (isSellerSettings) {
+          if (user == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Login required to access seller settings."),
+              ),
+            );
+            return;
+          }
+
+          // Check if user is an active seller
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
+            final userData = userDoc.data();
+            if (userData?['role'] != 'seller' || userData?['sellerStatus'] != 'active') {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("You must be an active seller to access seller settings."),
+                ),
+              );
+              return;
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Error checking seller status: $e")),
+            );
+            return;
+          }
+
+          // Proceed to seller screen
+          Navigator.pushNamed(context, '/seller_screen');
           return;
         }
 
@@ -201,7 +263,7 @@ class HuruScreen extends StatelessWidget {
               icon: Icons.shop,
               title: 'Seller Settings',
               color: primary,
-              routeName: '/seller_screen',
+              isSellerSettings: true,
             ),
             const Divider(),
             // ✅ FIXED NAVIGATION: Using flag and direct push

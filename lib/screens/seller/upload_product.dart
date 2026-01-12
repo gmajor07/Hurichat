@@ -48,12 +48,17 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
 
   // Defines categories based on the primary seller type (e.g., 'shopping').
   // NOTE: This map now maps sellerType to a list of CategoryItem objects.
+  // These category names (Electronics, Clothing, Accessories) are the primary groupings,
+  // while subcategories (Men, Women, Jewelry, etc.) are the actual filters used by ShoppingScreen.
   final Map<String, List<CategoryItem>> _categoryItemsMap = const {
     "shopping": [
       CategoryItem("Electronics", Icons.devices_other),
       CategoryItem("Clothing", Icons.checkroom),
       CategoryItem("Accessories", Icons.watch),
       CategoryItem("Books", Icons.book),
+      CategoryItem("Shoes", Icons.local_offer),
+      CategoryItem("Grocery", Icons.shopping_cart),
+      CategoryItem("Kitchen", Icons.kitchen),
     ],
     "food": [
       CategoryItem("Meals", Icons.restaurant),
@@ -68,11 +73,16 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
   };
 
   // The sub-categories map still uses string keys/values.
+  // NOTE: These match the subcategory chips shown in ShoppingScreen for filtering.
+  // Map each category to its available subcategory options (which users see as quick-selection filters).
   final Map<String, List<String>> _subCategoriesMap = const {
-    "Electronics": ["Smartphone", "Laptop", "TV", "Tablet"],
+    "Electronics": ["Smartphone", "Laptop", "TV", "Tablet", "Headphones"],
     "Clothing": ["Men", "Women", "Kids"],
-    "Accessories": ["Bags", "Watches", "Jewelry"],
-    "Books": ["Fiction", "Non-fiction", "Comics"],
+    "Accessories": ["Bags", "Watches", "Jewelry", "Belts", "Scarves"],
+    "Books": ["Fiction", "Non-fiction", "Comics", "Educational"],
+    "Shoes": ["Men", "Women", "Kids", "Sports"],
+    "Grocery": ["Vegetables", "Fruits", "Snacks", "Beverages"],
+    "Kitchen": ["Cookware", "Utensils", "Appliances", "Dining"],
     "Meals": ["Breakfast", "Lunch", "Dinner"],
     "Snacks": ["Chips", "Pastries", "Sweets"],
     "Drinks": ["Juice", "Soft Drink", "Alcohol"],
@@ -89,6 +99,7 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
   @override
   void initState() {
     super.initState();
+    _checkSellerStatus();
     _fetchSellerType();
   }
 
@@ -103,6 +114,35 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
   }
 
   // --- Firebase Data Fetching ---
+
+  Future<void> _checkSellerStatus() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        _showErrorSnackBar("User not logged in.");
+        Navigator.pop(context);
+        return;
+      }
+      final doc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .get();
+      if (doc.exists) {
+        final userData = doc.data();
+        if (userData?['role'] != 'seller' || userData?['sellerStatus'] != 'active') {
+          _showErrorSnackBar("You must be an active seller to upload products.");
+          Navigator.pop(context);
+          return;
+        }
+      } else {
+        _showErrorSnackBar("User data not found.");
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      _showErrorSnackBar("Failed to check seller status.");
+      Navigator.pop(context);
+    }
+  }
 
   /// Fetches the current user's seller type from Firestore.
   Future<void> _fetchSellerType() async {
@@ -275,7 +315,7 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
         "condition": _condition,
         "category": _category,
         "subCategory": _subCategory,
-        "imageUrl": imageUrls,
+        "images": imageUrls,
         "sellerId": uid,
         "sellerType": _sellerType,
         "location": _locationCtrl.text.trim(),

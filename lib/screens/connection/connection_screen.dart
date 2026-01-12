@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../chat/chat_screen.dart';
 
 class ConnectionScreen extends StatefulWidget {
-  const ConnectionScreen({Key? key}) : super(key: key);
+  const ConnectionScreen({super.key});
 
   @override
   State<ConnectionScreen> createState() => _ConnectionScreenState();
@@ -99,6 +100,40 @@ class _ConnectionScreenState extends State<ConnectionScreen>
     );
   }
 
+  Future<void> _sendMessage(String userId) async {
+    // Generate chat ID and navigate to chat screen
+    final currentUserId = currentUser!.uid;
+    final chatId = [currentUserId, userId]..sort();
+    final chatIdStr = chatId.join('_');
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(chatId: chatIdStr, userId: userId),
+      ),
+    );
+  }
+
+  Future<void> _disconnectUser(String userId) async {
+    final firestore = FirebaseFirestore.instance;
+
+    await firestore
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('connections')
+        .doc(userId)
+        .delete();
+
+    await firestore
+        .collection('users')
+        .doc(userId)
+        .collection('connections')
+        .doc(currentUser!.uid)
+        .delete();
+
+    _showSnackbar('✅ Disconnected from user');
+  }
+
   // ---------- 🔹 Fetch User Data ----------
   Future<Map<String, dynamic>> _getUserData(String userId) async {
     try {
@@ -124,9 +159,9 @@ class _ConnectionScreenState extends State<ConnectionScreen>
   Widget _buildConnectionCard(
     Map<String, dynamic> connectionData,
     String type,
+    String userId,
   ) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final String userId = connectionData['userId'] ?? '';
     if (userId.isEmpty) return const SizedBox();
 
     return FutureBuilder<Map<String, dynamic>>(
@@ -356,7 +391,43 @@ class _ConnectionScreenState extends State<ConnectionScreen>
             icon: Icon(Icons.close, color: Colors.red, size: 18),
             onPressed: () => _cancelRequest(userId),
             padding: EdgeInsets.zero,
+            tooltip: 'Cancel Request',
           ),
+        );
+      case 'accepted':
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: Icon(Icons.message, color: themeColor, size: 18),
+                onPressed: () => _sendMessage(userId),
+                padding: EdgeInsets.zero,
+                tooltip: 'Send Message',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: Icon(Icons.link_off, color: Colors.red, size: 18),
+                onPressed: () => _disconnectUser(userId),
+                padding: EdgeInsets.zero,
+                tooltip: 'Disconnect',
+              ),
+            ),
+          ],
         );
       default:
         return const SizedBox.shrink();
@@ -375,7 +446,6 @@ class _ConnectionScreenState extends State<ConnectionScreen>
         .collection('users')
         .doc(currentUser!.uid)
         .collection('connections')
-        .where('status', isEqualTo: type)
         .snapshots();
 
     return StreamBuilder<QuerySnapshot>(
@@ -389,7 +459,14 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final connections = snapshot.data!.docs;
+        final allConnections = snapshot.data!.docs;
+
+        // Filter connections by status in code
+        final connections = allConnections.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final status = data['status'] as String?;
+          return status == type;
+        }).toList();
 
         if (connections.isEmpty) {
           return Center(
@@ -425,8 +502,10 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           padding: const EdgeInsets.only(top: 16, bottom: 16),
           itemCount: connections.length,
           itemBuilder: (context, index) {
-            final data = connections[index].data() as Map<String, dynamic>;
-            return _buildConnectionCard(data, type);
+            final doc = connections[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final userId = doc.id;
+            return _buildConnectionCard(data, type, userId);
           },
         );
       },
