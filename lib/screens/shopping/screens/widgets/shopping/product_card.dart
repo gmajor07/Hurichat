@@ -20,22 +20,26 @@ class ProductCard extends StatelessWidget {
     this.onAddToCart,
   });
 
-  String _formatPrice(String price) {
+  String _formatPrice(String price, String currency) {
     final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
     final value = double.tryParse(clean) ?? 0;
-    return "Tsh ${value.toStringAsFixed(0)}";
+    final symbol = currency == 'USD' ? '\$' : 'Tsh';
+    return "$symbol ${value.toStringAsFixed(0)}";
   }
 
-  String _formatDiscountPrice(String? discountPrice) {
+  String _formatDiscountPrice(String? discountPrice, String currency) {
     if (discountPrice == null) return '';
     final clean = discountPrice.replaceAll(RegExp(r'[^0-9.]'), '');
     final value = double.tryParse(clean) ?? 0;
-    return "Tsh ${value.toStringAsFixed(0)}";
+    final symbol = currency == 'USD' ? '\$' : 'Tsh';
+    return "$symbol ${value.toStringAsFixed(0)}";
   }
 
   String _getShortDescription(String? description) {
     if (description == null || description.isEmpty) return '';
-    return description.length > 60 ? '${description.substring(0, 60)}...' : description;
+    return description.length > 60
+        ? '${description.substring(0, 60)}...'
+        : description;
   }
 
   Color _getConditionColor(String condition) {
@@ -85,18 +89,16 @@ class ProductCard extends StatelessWidget {
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(18)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(18),
+                    ),
                     child: SizedBox.expand(
                       child: Image.network(
                         product.displayImage,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          color: isDark
-                              ? Colors.grey[900]
-                              : Colors.grey[200],
-                          child:
-                          const Icon(Icons.image_not_supported),
+                          color: isDark ? Colors.grey[900] : Colors.grey[200],
+                          child: const Icon(Icons.image_not_supported),
                         ),
                       ),
                     ),
@@ -116,14 +118,13 @@ class ProductCard extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: colorScheme.primary
-                                  .withOpacity(0.35),
+                              color: colorScheme.primary.withOpacity(0.35),
                               blurRadius: 8,
                             ),
                           ],
                         ),
                         child: const Icon(
-                          Icons.add,
+                          Icons.shopping_cart_outlined,
                           size: 20,
                           color: Colors.white,
                         ),
@@ -136,8 +137,7 @@ class ProductCard extends StatelessWidget {
 
             // TEXT (natural height)
             Padding(
-              padding:
-              const EdgeInsets.fromLTRB(10, 10, 10, 12),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -154,7 +154,8 @@ class ProductCard extends StatelessWidget {
                   const SizedBox(height: 4),
 
                   // Short description
-                  if (product.description != null && product.description!.isNotEmpty)
+                  if (product.description != null &&
+                      product.description!.isNotEmpty)
                     Text(
                       _getShortDescription(product.description),
                       maxLines: 2,
@@ -170,14 +171,15 @@ class ProductCard extends StatelessWidget {
                   // Price section with discount
                   Row(
                     children: [
-                      if (product.discountPrice != null && product.discountPrice!.isNotEmpty)
+                      if (product.discountPrice != null &&
+                          product.discountPrice!.isNotEmpty)
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Original price (strikethrough)
                               Text(
-                                _formatPrice(product.price),
+                                _formatPrice(product.price, product.currency),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   decoration: TextDecoration.lineThrough,
                                   color: Colors.grey,
@@ -185,7 +187,10 @@ class ProductCard extends StatelessWidget {
                               ),
                               // Discounted price
                               Text(
-                                _formatDiscountPrice(product.discountPrice),
+                                _formatDiscountPrice(
+                                  product.discountPrice,
+                                  product.currency,
+                                ),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   color: Colors.red,
                                   fontWeight: FontWeight.bold,
@@ -196,7 +201,7 @@ class ProductCard extends StatelessWidget {
                         )
                       else
                         Text(
-                          _formatPrice(product.price),
+                          _formatPrice(product.price, product.currency),
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: colorScheme.primary,
                             fontWeight: FontWeight.bold,
@@ -206,7 +211,10 @@ class ProductCard extends StatelessWidget {
                       // Sold count
                       if (product.soldCount > 0)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.green.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -223,12 +231,18 @@ class ProductCard extends StatelessWidget {
                   ),
 
                   // Condition badge
-                  if (product.condition != null && product.condition!.isNotEmpty)
+                  if (product.condition != null &&
+                      product.condition!.isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getConditionColor(product.condition!).withOpacity(0.1),
+                        color: _getConditionColor(
+                          product.condition!,
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -245,13 +259,11 @@ class ProductCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.star,
-                            size: 14, color: Colors.amber),
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
                         const SizedBox(width: 4),
                         Text(
                           product.rating!.toStringAsFixed(1),
-                          style:
-                          theme.textTheme.bodySmall,
+                          style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ),

@@ -1,4 +1,5 @@
 // 'customer_product_details_screen.dart'
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -31,12 +32,34 @@ class _CustomerProductDetailsScreenState
   bool _loadingRelated = true;
   int _currentImageIndex = 0;
   Map<String, dynamic>? _sellerInfo;
+  late final PageController _pageController;
+  Timer? _autoSlideTimer;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _loadRelatedProducts();
     _loadSellerInfo();
+    _startAutoSlide();
+  }
+
+  void _startAutoSlide() {
+    if (widget.product.images.length > 1) {
+      _autoSlideTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+        if (_pageController.hasClients) {
+          int nextIndex = _currentImageIndex + 1;
+          if (nextIndex >= widget.product.images.length) {
+            nextIndex = 0;
+          }
+          _pageController.animateToPage(
+            nextIndex,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    }
   }
 
   Future<void> _loadRelatedProducts() async {
@@ -99,8 +122,9 @@ class _CustomerProductDetailsScreenState
     return value?.trim().toLowerCase() ?? '';
   }
 
-  String _formatPrice(double price) {
-    return '\$${_addCommas(price.toStringAsFixed(2))}';
+  String _formatPrice(double price, String currency) {
+    final symbol = currency == 'USD' ? '\$' : 'Tsh';
+    return '$symbol${_addCommas(price.toStringAsFixed(2))}';
   }
 
   String _addCommas(String price) {
@@ -137,10 +161,7 @@ class _CustomerProductDetailsScreenState
             ),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -183,7 +204,7 @@ class _CustomerProductDetailsScreenState
         cartProvider.addItem(firebaseProduct);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${firebaseProduct.name} added to cart!'),
+            content: Text('${firebaseProduct.name.capitalizeFirst()} added to cart!'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -204,7 +225,7 @@ class _CustomerProductDetailsScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${widget.product.name} added to cart!'),
+          content: Text('${widget.product.name.capitalizeFirst()} added to cart!'),
           action: SnackBarAction(
             label: 'View Cart',
             onPressed: () {
@@ -220,7 +241,7 @@ class _CustomerProductDetailsScreenState
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${widget.product.name} is already in your cart!'),
+          content: Text('${widget.product.name.capitalizeFirst()} is already in your cart!'),
           duration: const Duration(seconds: 1),
           behavior: SnackBarBehavior.floating,
         ),
@@ -260,10 +281,17 @@ class _CustomerProductDetailsScreenState
   }
 
   @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.product.name),
+        title: Text(widget.product.name.capitalizeFirst()),
         actions: [
           // Cart Icon with Badge
           Consumer<CartProvider>(
@@ -322,6 +350,7 @@ class _CustomerProductDetailsScreenState
                   AspectRatio(
                     aspectRatio: 1,
                     child: PageView.builder(
+                      controller: _pageController,
                       itemCount: widget.product.images.length,
                       onPageChanged: (index) {
                         setState(() => _currentImageIndex = index);
@@ -414,7 +443,7 @@ class _CustomerProductDetailsScreenState
 
             // Product name
             Text(
-              widget.product.name,
+              widget.product.name.capitalizeFirst(),
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
@@ -430,7 +459,10 @@ class _CustomerProductDetailsScreenState
                     children: [
                       // Original price (strikethrough)
                       Text(
-                        _formatPrice(widget.product.price.toDouble()),
+                        _formatPrice(
+                          widget.product.price.toDouble(),
+                          widget.product.currency,
+                        ),
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.grey,
@@ -439,7 +471,7 @@ class _CustomerProductDetailsScreenState
                       ),
                       // Discounted price
                       Text(
-                        'Tsh ${widget.product.discountPrice}',
+                        '${widget.product.currency == 'USD' ? '\$' : 'Tsh'} ${widget.product.discountPrice}',
                         style: TextStyle(
                           fontSize: 24,
                           color: Colors.red,
@@ -458,7 +490,10 @@ class _CustomerProductDetailsScreenState
                   )
                 else
                   Text(
-                    _formatPrice(widget.product.price.toDouble()),
+                    _formatPrice(
+                      widget.product.price.toDouble(),
+                      widget.product.currency,
+                    ),
                     style: TextStyle(
                       fontSize: 24,
                       color: Theme.of(context).colorScheme.primary,
@@ -471,14 +506,21 @@ class _CustomerProductDetailsScreenState
                 // Sold count badge
                 if (widget.product.soldCount > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.shopping_bag, size: 16, color: Colors.green),
+                        const Icon(
+                          Icons.shopping_bag,
+                          size: 16,
+                          color: Colors.green,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${widget.product.soldCount} sold',
@@ -617,7 +659,8 @@ class _CustomerProductDetailsScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).brightness == Brightness.dark
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
                                 ? Colors.white
                                 : Colors.black,
                           ),
@@ -628,7 +671,9 @@ class _CustomerProductDetailsScreenState
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.1),
                           child: Text(
                             (_sellerInfo?['name'] ?? 'S')[0].toUpperCase(),
                             style: TextStyle(
@@ -643,7 +688,7 @@ class _CustomerProductDetailsScreenState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _sellerInfo?['name'] ?? 'Seller',
+                                (_sellerInfo?['name'] ?? 'Seller').toString().capitalizeFirst(),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -660,7 +705,10 @@ class _CustomerProductDetailsScreenState
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.green.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),

@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../advanced_search_bar.dart';
+import '../../provider/cart_provider.dart';
 import '../models/product_item.dart';
 import '../models/firebase_product.dart';
 import 'customer_product_details_screen.dart';
@@ -25,11 +27,11 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   List<ProductItem> _allProducts = [];
   List<ProductItem> _filteredProducts = [];
   bool _loading = true;
+  bool _isFilterExpanded = false;
 
   // Advanced filters
   RangeValues _priceRange = const RangeValues(0, 1000000);
   String _selectedCondition = "All";
-  List<String> _availableConditions = ["All"];
 
   @override
   void initState() {
@@ -41,7 +43,6 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     setState(() => _loading = true);
 
     try {
-      // Load Firebase products only
       final firebaseSnap = await FirebaseFirestore.instance
           .collection("products")
           .get();
@@ -52,20 +53,18 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           .toList();
 
       _allProducts = firebaseProducts;
-      // Build subcategories list from uploaded product subCategories
+      
       final Set<String> dynamicSubCats = _allProducts
           .map((p) => p.subCategory?.trim() ?? '')
           .where((c) => c.isNotEmpty)
           .map((c) => _normalizeCategoryLabel(c))
           .toSet();
 
-      // Build conditions list
       final Set<String> dynamicConditions = _allProducts
           .map((p) => p.condition?.trim() ?? '')
           .where((c) => c.isNotEmpty)
           .toSet();
 
-      // Create subcategories list starting with "All"
       final List<String> merged = ["All"];
       for (final c in dynamicSubCats) {
         if (!merged.map((e) => e.toLowerCase()).contains(c.toLowerCase())) {
@@ -74,18 +73,17 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       }
       _subCategories = merged;
 
-      // Create conditions list starting with "All"
       final List<String> conditions = ["All"];
       for (final c in dynamicConditions) {
         if (!conditions.map((e) => e.toLowerCase()).contains(c.toLowerCase())) {
           conditions.add(c);
         }
       }
-      _availableConditions = conditions;
 
-      // Set up price range based on available products
       if (_allProducts.isNotEmpty) {
-        final prices = _allProducts.map((p) => double.tryParse(p.price) ?? 0).toList();
+        final prices = _allProducts
+            .map((p) => double.tryParse(p.price) ?? 0)
+            .toList();
         final minPrice = prices.reduce((a, b) => a < b ? a : b);
         final maxPrice = prices.reduce((a, b) => a > b ? a : b);
         _priceRange = RangeValues(minPrice, maxPrice);
@@ -106,29 +104,29 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   void _filterProducts() {
     setState(() {
       _filteredProducts = _allProducts.where((product) {
-        // Subcategory filter
         final matchesSubCategory =
             _selectedSubCategory == "All" ||
             _normalize(product.subCategory ?? '') ==
                 _normalize(_selectedSubCategory);
 
-        // Search query filter
         final matchesSearch = product.name.toLowerCase().contains(
           _searchQuery.toLowerCase(),
         );
 
-        // Condition filter
         final matchesCondition =
             _selectedCondition == "All" ||
             (product.condition?.toLowerCase() ?? '') ==
                 _selectedCondition.toLowerCase();
 
-        // Price range filter
         final productPrice = double.tryParse(product.price) ?? 0;
-        final matchesPrice = productPrice >= _priceRange.start &&
-                           productPrice <= _priceRange.end;
+        final matchesPrice =
+            productPrice >= _priceRange.start &&
+            productPrice <= _priceRange.end;
 
-        return matchesSubCategory && matchesSearch && matchesCondition && matchesPrice;
+        return matchesSubCategory &&
+            matchesSearch &&
+            matchesCondition &&
+            matchesPrice;
       }).toList();
     });
   }
@@ -160,7 +158,9 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       _searchQuery = '';
       _selectedCondition = "All";
       if (_allProducts.isNotEmpty) {
-        final prices = _allProducts.map((p) => double.tryParse(p.price) ?? 0).toList();
+        final prices = _allProducts
+            .map((p) => double.tryParse(p.price) ?? 0)
+            .toList();
         final minPrice = prices.reduce((a, b) => a < b ? a : b);
         final maxPrice = prices.reduce((a, b) => a > b ? a : b);
         _priceRange = RangeValues(minPrice, maxPrice);
@@ -178,7 +178,6 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   }
 
   void _onProductTap(ProductItem product) async {
-    // Fetch the full FirebaseProduct
     try {
       final doc = await FirebaseFirestore.instance
           .collection('products')
@@ -186,7 +185,6 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           .get();
       if (doc.exists) {
         final firebaseProduct = FirebaseProduct.fromMap(doc.id, doc.data()!);
-        // Navigate to product details screen
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -202,40 +200,48 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     }
   }
 
-  void _onAddToCart(ProductItem product) {
-    // Add product to cart
-    if (kDebugMode) {
-      print('Added to cart: ${product.name}');
+  Future<void> _onAddToCart(ProductItem product) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('products')
+          .doc(product.id)
+          .get();
+
+      if (!doc.exists) return;
+
+      final firebaseProduct = FirebaseProduct.fromMap(doc.id, doc.data()!);
+
+      if (mounted) {
+        final cartProvider = Provider.of<CartProvider>(context, listen: false);
+        cartProvider.addItem(firebaseProduct);
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${product.name} added to cart!'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'View Cart',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CustomerCartScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error adding to cart: $e');
+      }
     }
-
-    // Show confirmation snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.name} added to cart!'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'View Cart',
-          onPressed: () {
-            // Navigate to cart screen
-            if (kDebugMode) {
-              print('Navigate to cart');
-            }
-          },
-        ),
-      ),
-    );
   }
 
-  void _clearSearch() {
-    setState(() {
-      _searchQuery = '';
-      _searchController.clear();
-    });
-    _filterProducts();
-  }
-
-  // Group products by subcategory for dynamic sections
   Map<String, List<ProductItem>> get _productsBySubCategory {
     final Map<String, List<ProductItem>> grouped = {};
     for (final product in _filteredProducts) {
@@ -248,17 +254,14 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     return grouped;
   }
 
-  // Helpers to normalize category/strings so uploaded values match UI filters
   String _normalize(String? s) {
     if (s == null) return '';
     return s.trim().toLowerCase();
   }
 
-  // Take a raw category value and return a normalized display label
   String _normalizeCategoryLabel(String s) {
     final n = _normalize(s);
     if (n.isEmpty) return '';
-    // Capitalize first letter for display
     return n[0].toUpperCase() + n.substring(1);
   }
 
@@ -269,112 +272,144 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
+      appBar: AppBar(
+        title: const Text('Shopping'),
+        backgroundColor: bgColor,
+        elevation: 0,
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CustomerCartScreen(),
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Consumer<CartProvider>(
+                  builder: (context, cart, child) {
+                    return cart.itemCount > 0
+                        ? Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              '${cart.itemCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  // 🔍 Advanced Search Bar
-                  AdvancedSearchBar(
-                    hintText: "Search products...",
-                    onSearchChanged: _onSearchChanged,
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                  // 🔍 Search + Filter Toggle
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: AdvancedSearchBar(
+                            hintText: "Search...",
+                            onSearchChanged: _onSearchChanged,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(
+                            _isFilterExpanded
+                                ? Icons.filter_list_off
+                                : Icons.filter_list,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isFilterExpanded = !_isFilterExpanded;
+                            });
+                          },
+                        ),
+                      ],
                     ),
                   ),
 
-                  // 🎛️ Advanced Filters Section
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // 🎛️ Collapsible Filters Section
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: _isFilterExpanded ? null : 0,
+                    child: SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Filters',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Price Range',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                TextButton(
+                                  onPressed: _resetFilters,
+                                  child: const Text('Reset'),
+                                ),
+                              ],
                             ),
-                            TextButton.icon(
-                              onPressed: _resetFilters,
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Reset'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Theme.of(context).colorScheme.primary,
-                              ),
+                            Text(
+                              'Tsh ${_priceRange.start.toInt()} - Tsh ${_priceRange.end.toInt()}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            RangeSlider(
+                              values: _priceRange,
+                              min: 0,
+                              max: 1000000,
+                              divisions: 100,
+                              onChanged: _onPriceRangeChanged,
+                              activeColor: Theme.of(context).colorScheme.primary,
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-
-                        // Price Range Filter
-                        Text(
-                          'Price Range: Tsh ${_priceRange.start.toInt()} - Tsh ${_priceRange.end.toInt()}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                        RangeSlider(
-                          values: _priceRange,
-                          min: 0,
-                          max: 1000000,
-                          divisions: 100,
-                          labels: RangeLabels(
-                            'Tsh ${_priceRange.start.toInt()}',
-                            'Tsh ${_priceRange.end.toInt()}',
-                          ),
-                          onChanged: _onPriceRangeChanged,
-                          activeColor: Theme.of(context).colorScheme.primary,
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Condition Filter
-                        Text(
-                          'Condition',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _availableConditions.map((condition) {
-                            final isSelected = _selectedCondition == condition;
-                            return FilterChip(
-                              label: Text(condition),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                if (selected) {
-                                  _onConditionSelected(condition);
-                                }
-                              },
-                              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-                              selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                              checkmarkColor: Theme.of(context).colorScheme.primary,
-                            );
-                          }).toList(),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
 
@@ -407,11 +442,11 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
                           const SizedBox(height: 10),
 
-                          // Show message if no products found
                           if (_filteredProducts.isEmpty)
                             const Center(
                               child: Column(
                                 children: [
+                                  SizedBox(height: 40),
                                   Icon(
                                     Icons.search_off,
                                     size: 64,
@@ -422,19 +457,10 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                                     'No products found',
                                     style: TextStyle(color: Colors.grey),
                                   ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Try a different search or category',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 12,
-                                    ),
-                                  ),
                                 ],
                               ),
                             )
                           else ...[
-                            // Dynamic sections for each subcategory
                             for (final entry
                                 in _productsBySubCategory.entries) ...[
                               if (entry.value.isNotEmpty) ...[
@@ -460,22 +486,6 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                 ],
               ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CustomerCartScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF4CAFAB),
-        child: const Icon(Icons.shopping_cart, color: Colors.white),
-      ),
     );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 }

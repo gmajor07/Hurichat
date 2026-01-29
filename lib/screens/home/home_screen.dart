@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String firstName = '';
 
   final List<Widget> _screens = [
-    UsersListScreen(), // Chats (start)
+    UsersListScreen(), // Chats (all users)
     const FoodScreen(),
     const ShoppingScreen(),
     const DiscoverScreen(),

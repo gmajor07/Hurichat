@@ -9,6 +9,7 @@ import 'info_row.dart';
 import 'profile_actions.dart';
 import 'profile_header.dart';
 import 'update_user_type.dart';
+import 'manage_seller_account_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -82,61 +83,29 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  void _manageSellerAccount() {
-    final currentStatus = userData?['sellerStatus'] ?? 'inactive';
-    bool isActive = currentStatus == 'active';
+  void _becomeSeller() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const BecomeSellerPage()),
+    ).then((updated) {
+      if (updated == true) {
+        _fetchUserData(); // refresh role change
+      }
+    });
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Manage Seller Account'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Toggle your seller account status:'),
-              SwitchListTile(
-                title: Text(isActive ? 'Active' : 'Inactive'),
-                value: isActive,
-                onChanged: (value) {
-                  setState(() => isActive = value);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user!.uid)
-                      .update({'sellerStatus': isActive ? 'active' : 'inactive'});
-                  Navigator.pop(context);
-                  await _fetchUserData();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Seller account ${isActive ? 'activated' : 'deactivated'}.',
-                      ),
-                    ),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to update: $e')),
-                  );
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
+  void _manageSellerAccount() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ManageSellerAccountScreen(userId: user!.uid, userData: userData),
       ),
-    );
+    ).then((updated) {
+      if (updated == true) {
+        _fetchUserData();
+      }
+    });
   }
 
   @override
@@ -172,31 +141,36 @@ class _AccountScreenState extends State<AccountScreen> {
                       onUpdateProfile: _openUpdateProfile,
                       onOrderHistory: _openOrderHistory,
                       onSignOut: _signOut,
+                      onBecomeSeller: userData?['role'] != 'seller'
+                          ? _becomeSeller
+                          : null,
                     ),
 
                     const SizedBox(height: 20),
 
                     // ⭐ SELLER SECTION
-                    if (userData?['role'] != 'seller')
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const BecomeSellerPage(),
+                    if (userData?['role'] == 'seller')
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _manageSellerAccount,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4CAFAB),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                          ).then((updated) {
-                            if (updated == true) {
-                              _fetchUserData(); // refresh role change
-                            }
-                          });
-                        },
-                        child: const Text("Become a Seller"),
-                      )
-                    else
-                      ElevatedButton(
-                        onPressed: _manageSellerAccount,
-                        child: const Text("Manage Seller Account"),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Manage Seller Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
 
                     const SizedBox(height: 20),

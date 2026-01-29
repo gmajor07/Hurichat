@@ -224,6 +224,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     final msg = messages[index];
                     return MessageTile(
                       message: msg,
+                      senderPhotoUrl:
+                          FirebaseAuth.instance.currentUser?.photoURL,
+                      receiverPhotoUrl:
+                          controller.receiverData?['photoUrl'] as String?,
                       onLongPress: () {
                         // reuse your original action sheet logic here
                         showModalBottomSheet(

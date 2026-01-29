@@ -4,6 +4,7 @@ class ProductItem {
   final String id;
   final String name;
   final String price;
+  final String currency; // New field: 'TSH' or 'USD'
   final String imagePath; // Kept for local fallback if needed
   final String? imageUrl;
   final String category;
@@ -27,6 +28,7 @@ class ProductItem {
     required this.id,
     required this.name,
     required this.price,
+    this.currency = 'TSH',
     required this.imagePath,
     this.imageUrl,
     required this.category,
@@ -53,6 +55,7 @@ class ProductItem {
       id: firebaseProduct.id,
       name: firebaseProduct.name,
       price: firebaseProduct.price.toString(),
+      currency: firebaseProduct.currency,
       imagePath: '',
       imageUrl: firebaseProduct.imageUrl,
       category: firebaseProduct.category,

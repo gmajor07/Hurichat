@@ -57,10 +57,13 @@ class HuruScreen extends StatelessWidget {
                 .doc(user.uid)
                 .get();
             final userData = userDoc.data();
-            if (userData?['role'] != 'seller' || userData?['sellerStatus'] != 'active') {
+            if (userData?['role'] != 'seller' ||
+                userData?['sellerStatus'] != 'active') {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text("You must be an active seller to access the dashboard."),
+                  content: Text(
+                    "You must be an active seller to access the dashboard.",
+                  ),
                 ),
               );
               return;
@@ -100,10 +103,13 @@ class HuruScreen extends StatelessWidget {
                 .doc(user.uid)
                 .get();
             final userData = userDoc.data();
-            if (userData?['role'] != 'seller' || userData?['sellerStatus'] != 'active') {
+            if (userData?['role'] != 'seller' ||
+                userData?['sellerStatus'] != 'active') {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text("You must be an active seller to access seller settings."),
+                  content: Text(
+                    "You must be an active seller to access seller settings.",
+                  ),
                 ),
               );
               return;
@@ -252,10 +258,10 @@ class HuruScreen extends StatelessWidget {
             const Divider(),
             _buildSettingsTile(
               context,
-              icon: Icons.settings,
-              title: 'Settings',
+              icon: Icons.person,
+              title: 'Profile',
               color: primary,
-              routeName: '/account_settings',
+              routeName: '/account_profile',
             ),
             const Divider(),
             _buildSettingsTile(
@@ -270,10 +276,10 @@ class HuruScreen extends StatelessWidget {
             _buildSettingsTile(
               context,
               icon: Icons.store_mall_directory, // Updated icon
-              title: 'My Seller Dashboard',
+              title: 'Seller Dashboard',
               color: primary,
               isSellerDashboard: true, // 🔑 Trigger the fix logic
-              // routeName: '/seller_dashboard_screen', // ❌ DEPRECATED ROUTE
+               routeName: '/seller_dashboard_screen', // ❌ DEPRECATED ROUTE
             ),
             const Divider(),
             _buildSettingsTile(

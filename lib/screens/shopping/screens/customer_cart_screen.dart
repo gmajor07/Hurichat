@@ -330,7 +330,7 @@ class CustomerCartScreen extends StatelessWidget {
     String formatted = '';
     for (int i = integerPart.length - 1, count = 0; i >= 0; i--, count++) {
       if (count % 3 == 0 && count > 0) {
-        formatted = ',' + formatted;
+        formatted = ',$formatted';
       }
       formatted = integerPart[i] + formatted;
     }

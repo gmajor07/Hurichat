@@ -34,12 +34,7 @@ class RestaurantCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(14),
               ),
-              child: Image.asset(
-                restaurant.imagePath,
-                height: 80,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: _buildImage(),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -77,5 +72,59 @@ class RestaurantCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildImage() {
+    // Check if imagePath is a URL (starts with http or https)
+    if (restaurant.imagePath.startsWith('http')) {
+      return Image.network(
+        restaurant.imagePath,
+        height: 80,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback to default asset image if network image fails
+          return Image.asset(
+            'assets/images/food/1.png',
+            height: 80,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 80,
+            width: double.infinity,
+            color: Colors.grey[300],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // Use local asset image
+      return Image.asset(
+        restaurant.imagePath,
+        height: 80,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback to default asset image if asset fails
+          return Image.asset(
+            'assets/images/food/1.png',
+            height: 80,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    }
   }
 }

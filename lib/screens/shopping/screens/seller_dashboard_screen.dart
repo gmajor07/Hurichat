@@ -24,7 +24,6 @@ class SellerProductsScreen extends StatefulWidget {
 class _SellerProductsScreenState extends State<SellerProductsScreen> {
   List<FirebaseProduct> products = [];
   bool loading = true;
-  String _sellerName = "Loading seller name...";
 
   // --- Initialization and Data Loading (Unchanged logic) ---
   @override
@@ -37,7 +36,7 @@ class _SellerProductsScreenState extends State<SellerProductsScreen> {
   Future<void> _fetchSellerName() async {
     // ... (unchanged fetch logic)
     if (widget.sellerId.isEmpty) {
-      if (mounted) setState(() => _sellerName = 'No Seller ID provided');
+      if (mounted)
       return;
     }
 
@@ -49,20 +48,17 @@ class _SellerProductsScreenState extends State<SellerProductsScreen> {
 
       if (mounted) {
         if (userDoc.exists) {
-          final name = userDoc.data()?['name'] ?? 'Name not set';
+          final _ = userDoc.data()?['name'] ?? 'Name not set';
           setState(() {
-            _sellerName = name;
           });
         } else {
           setState(() {
-            _sellerName = 'User document not found';
           });
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _sellerName = 'Error loading name';
         });
       }
     }

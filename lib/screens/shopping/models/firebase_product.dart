@@ -7,6 +7,7 @@ class FirebaseProduct {
   final String category;
   final String subCategory;
   final num price;
+  final String currency; // New field: 'TSH' or 'USD'
   final String condition;
   final String sellerId;
   final String? description;
@@ -27,6 +28,7 @@ class FirebaseProduct {
     required this.category,
     required this.subCategory,
     required this.price,
+    this.currency = 'TSH',
     required this.condition,
     required this.sellerId,
     this.description,
@@ -83,7 +85,9 @@ class FirebaseProduct {
     // Handle delivery options
     List<String> deliveryOpts = [];
     if (data["deliveryOptions"] is List) {
-      deliveryOpts = (data["deliveryOptions"] as List).map((opt) => opt.toString()).toList();
+      deliveryOpts = (data["deliveryOptions"] as List)
+          .map((opt) => opt.toString())
+          .toList();
     }
 
     return FirebaseProduct(
@@ -93,6 +97,7 @@ class FirebaseProduct {
       category: data["category"] ?? '',
       subCategory: data["subCategory"] ?? '',
       price: priceValue,
+      currency: data["currency"] ?? 'TSH',
       condition: data["condition"] ?? '',
       sellerId: data["sellerId"] ?? '',
       description: data["description"],
@@ -103,7 +108,9 @@ class FirebaseProduct {
       createdAt: createdAt,
       updatedAt: updatedAt,
       soldCount: data["soldCount"] ?? 0,
-      discountPrice: data["discountPrice"] is num ? data["discountPrice"] : null,
+      discountPrice: data["discountPrice"] is num
+          ? data["discountPrice"]
+          : null,
       discountDescription: data["discountDescription"],
     );
   }
@@ -116,6 +123,7 @@ class FirebaseProduct {
       "category": category,
       "subCategory": subCategory,
       "price": price,
+      "currency": currency,
       "condition": condition,
       "sellerId": sellerId,
       "description": description,
@@ -123,7 +131,9 @@ class FirebaseProduct {
       "location": location,
       "deliveryOptions": deliveryOptions,
       "sellerType": sellerType,
-      "createdAt": createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      "createdAt": createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
       "updatedAt": FieldValue.serverTimestamp(),
       "soldCount": soldCount,
       "discountPrice": discountPrice,

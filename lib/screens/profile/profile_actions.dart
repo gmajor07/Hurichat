@@ -4,6 +4,7 @@ class ProfileActions extends StatelessWidget {
   final VoidCallback onUpdateProfile;
   final VoidCallback onOrderHistory;
   final VoidCallback onSignOut;
+  final VoidCallback? onBecomeSeller;
   static const Color themeColor = Color(0xFF4CAFAB);
 
   const ProfileActions({
@@ -11,6 +12,7 @@ class ProfileActions extends StatelessWidget {
     required this.onUpdateProfile,
     required this.onOrderHistory,
     required this.onSignOut,
+    this.onBecomeSeller,
   });
 
   @override
@@ -64,6 +66,30 @@ class ProfileActions extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        if (onBecomeSeller != null)
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: onBecomeSeller,
+              icon: const Icon(Icons.store, color: Color(0xFF4CAFAB)),
+              label: const Text(
+                'Become a Seller',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF4CAFAB),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFF4CAFAB)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,

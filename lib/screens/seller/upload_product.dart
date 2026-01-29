@@ -40,8 +40,16 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
   String? _category;
   String? _subCategory;
   String? _condition;
+  String _currency = 'TSH'; // New: Currency selection (TSH or USD)
   final List<String> _deliveryOptions = [];
   final List<File> _images = [];
+
+  // --- Transport-Specific Variables ---
+  String? _transmission; // Manual or Automatic
+  String? _fuelType; // Petrol, Diesel, Electric, Hybrid
+  int? _mileage; // in kilometers
+  int? _seatingCapacity;
+  int? _yearOfManufacture;
 
   // --- Static Data Maps ---
   static const int _maxImages = 5;
@@ -94,6 +102,15 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
   final List<String> _conditionOptions = const ["New", "Used", "Refurbished"];
   final List<String> _deliveryOptionsList = const ["Pickup", "Delivery"];
 
+  // --- Transport-Specific Options ---
+  final List<String> _transmissionOptions = const ["Manual", "Automatic"];
+  final List<String> _fuelTypeOptions = const [
+    "Petrol",
+    "Diesel",
+    "Electric",
+    "Hybrid",
+  ];
+
   // --- Lifecycle Methods ---
 
   @override
@@ -129,8 +146,11 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
           .get();
       if (doc.exists) {
         final userData = doc.data();
-        if (userData?['role'] != 'seller' || userData?['sellerStatus'] != 'active') {
-          _showErrorSnackBar("You must be an active seller to upload products.");
+        if (userData?['role'] != 'seller' ||
+            userData?['sellerStatus'] != 'active') {
+          _showErrorSnackBar(
+            "You must be an active seller to upload products.",
+          );
           Navigator.pop(context);
           return;
         }
@@ -283,12 +303,32 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
       return;
     }
 
-    if (_category == null || _subCategory == null || _condition == null) {
-      _showErrorSnackBar(
-        "Please select a category, sub-category, and condition.",
-      );
+    if (_category == null || _subCategory == null) {
+      _showErrorSnackBar("Please select a category and sub-category.");
       return;
     }
+
+    // Validate condition for shopping sellers
+    if (_sellerType == 'shopping' && _condition == null) {
+      _showErrorSnackBar("Please select a condition.");
+      return;
+    }
+
+    // Validate transport-specific fields
+    if (_sellerType == 'transport') {
+      if (_yearOfManufacture == null ||
+          _transmission == null ||
+          _fuelType == null ||
+          _mileage == null ||
+          _seatingCapacity == null) {
+        _showErrorSnackBar(
+          "Please fill in all transport details (Year, Transmission, Fuel Type, Mileage, Seating Capacity).",
+        );
+        return;
+      }
+    }
+
+    _formKey.currentState!.save();
 
     if (mounted) setState(() => _isLoading = true);
 
@@ -311,8 +351,9 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
         "name": _nameCtrl.text.trim(),
         "description": _descCtrl.text.trim(),
         "price": double.parse(_priceCtrl.text),
+        "currency": _currency,
         "quantity": int.parse(_quantityCtrl.text),
-        "condition": _condition,
+        "condition": _sellerType == 'shopping' ? _condition : null,
         "category": _category,
         "subCategory": _subCategory,
         "images": imageUrls,
@@ -320,6 +361,14 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
         "sellerType": _sellerType,
         "location": _locationCtrl.text.trim(),
         "deliveryOptions": _deliveryOptions,
+        // Transport-specific fields
+        "yearOfManufacture": _sellerType == 'transport'
+            ? _yearOfManufacture
+            : null,
+        "transmission": _sellerType == 'transport' ? _transmission : null,
+        "fuelType": _sellerType == 'transport' ? _fuelType : null,
+        "mileage": _sellerType == 'transport' ? _mileage : null,
+        "seatingCapacity": _sellerType == 'transport' ? _seatingCapacity : null,
         "status": "active",
         "createdAt": FieldValue.serverTimestamp(),
         "updatedAt": FieldValue.serverTimestamp(),
@@ -565,17 +614,126 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
 
               if (_category != null) const SizedBox(height: 16),
 
-              // --- CONDITION SELECT ---
-              _buildConditionDropdown(
-                context: context,
-                label: 'Condition',
-                value: _condition,
-                items: _conditionOptions,
-                onChanged: (val) => setState(() => _condition = val),
-                validator: (val) => _validateDropdown(val, 'condition'),
-              ),
+              // --- CONDITION SELECT (Only for Shopping) ---
+              if (_sellerType == 'shopping' && _category != null)
+                _buildConditionDropdown(
+                  context: context,
+                  label: 'Condition',
+                  value: _condition,
+                  items: _conditionOptions,
+                  onChanged: (val) => setState(() => _condition = val),
+                  validator: (val) => _validateDropdown(val, 'condition'),
+                ),
 
-              const SizedBox(height: 16),
+              if (_sellerType == 'shopping' && _category != null)
+                const SizedBox(height: 16),
+
+              // --- TRANSPORT-SPECIFIC FIELDS ---
+              if (_sellerType == 'transport' && _category != null) ...[
+                // Year of Manufacture
+                TextFormField(
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: _buildModernInputDecoration(
+                    context: context,
+                    labelText: "Year of Manufacture *",
+                    icon: Icons.calendar_today_outlined,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter the year of manufacture';
+                    }
+                    final year = int.tryParse(value);
+                    if (year == null ||
+                        year < 1900 ||
+                        year > DateTime.now().year) {
+                      return 'Please enter a valid year';
+                    }
+                    return null;
+                  },
+                  onSaved: (value) {
+                    if (value != null) _yearOfManufacture = int.parse(value);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Transmission
+                DropdownButtonFormField<String>(
+                  value: _transmission,
+                  decoration: _buildModernInputDecoration(
+                    context: context,
+                    labelText: "Transmission *",
+                    icon: Icons.settings,
+                  ),
+                  items: _transmissionOptions
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _transmission = value);
+                  },
+                  validator: (val) => _validateDropdown(val, 'transmission'),
+                ),
+                const SizedBox(height: 16),
+
+                // Fuel Type
+                DropdownButtonFormField<String>(
+                  value: _fuelType,
+                  decoration: _buildModernInputDecoration(
+                    context: context,
+                    labelText: "Fuel Type *",
+                    icon: Icons.local_gas_station,
+                  ),
+                  items: _fuelTypeOptions
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _fuelType = value);
+                  },
+                  validator: (val) => _validateDropdown(val, 'fuel type'),
+                ),
+                const SizedBox(height: 16),
+
+                // Mileage (in km)
+                TextFormField(
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: _buildModernInputDecoration(
+                    context: context,
+                    labelText: "Mileage *",
+                    icon: Icons.speed,
+                  ).copyWith(suffixText: "km"),
+                  validator: (value) => _validateRequired(value, 'mileage'),
+                  onSaved: (value) {
+                    if (value != null) _mileage = int.parse(value);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Seating Capacity
+                TextFormField(
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: _buildModernInputDecoration(
+                    context: context,
+                    labelText: "Seating Capacity *",
+                    icon: Icons.event_seat,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter seating capacity';
+                    }
+                    final capacity = int.tryParse(value);
+                    if (capacity == null || capacity <= 0) {
+                      return 'Please enter a valid number';
+                    }
+                    return null;
+                  },
+                  onSaved: (value) {
+                    if (value != null) _seatingCapacity = int.parse(value);
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // --- PRODUCT NAME ---
               TextFormField(
@@ -619,6 +777,33 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
                   icon: Icons.attach_money,
                 ).copyWith(prefixText: "\$ "),
                 validator: _validatePrice,
+              ),
+
+              const SizedBox(height: 16),
+
+              // --- CURRENCY SELECTION ---
+              DropdownButtonFormField<String>(
+                value: _currency,
+                decoration: _buildModernInputDecoration(
+                  context: context,
+                  labelText: "Currency *",
+                  icon: Icons.currency_exchange,
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'TSH',
+                    child: Text('Tanzanian Shilling (TSH)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'USD',
+                    child: Text('US Dollar (USD)'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _currency = value ?? 'TSH';
+                  });
+                },
               ),
 
               const SizedBox(height: 16),

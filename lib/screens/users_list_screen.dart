@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'advanced_search_bar.dart';
 import 'chat/chat_screen.dart';
-import 'package:intl/intl.dart';
-import 'connection/discovery_connection_screen.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -57,28 +56,25 @@ class _UsersListScreenState extends State<UsersListScreen> {
   Future<void> _deleteConnection(String userId) async {
     try {
       final firestore = FirebaseFirestore.instance;
+      // Remove from chat history/connections
       await firestore
           .collection('users')
           .doc(currentUser!.uid)
-          .collection('connections')
-          .doc(userId)
-          .delete();
-      await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('connections')
-          .doc(currentUser!.uid)
-          .delete();
+          .update({
+            'chatHistory': FieldValue.arrayRemove([userId]),
+          })
+          .catchError((_) {});
+
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Connection deleted')));
+        ).showSnackBar(const SnackBar(content: Text('Chat removed')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete connection')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to remove chat')));
       }
     }
   }
@@ -86,18 +82,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
   Future<void> _blockUser(String userId) async {
     try {
       final firestore = FirebaseFirestore.instance;
-      await firestore
-          .collection('users')
-          .doc(currentUser!.uid)
-          .collection('connections')
-          .doc(userId)
-          .set({'status': 'blocked', 'userId': userId});
-      await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('connections')
-          .doc(currentUser!.uid)
-          .set({'status': 'blocked', 'userId': currentUser!.uid});
+      await firestore.collection('users').doc(currentUser!.uid).update({
+        'blockedUsers': FieldValue.arrayUnion([userId]),
+      });
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -135,11 +122,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
     });
   }
 
-  void _selectAll(List<Map<String, dynamic>> chatItems) {
+  void _selectAll(List<String> userIds) {
     setState(() {
       _selectedUserIds.clear();
-      for (var item in chatItems) {
-        _selectedUserIds.add(item['userId']);
+      for (var id in userIds) {
+        _selectedUserIds.add(id);
       }
     });
   }
@@ -151,30 +138,25 @@ class _UsersListScreenState extends State<UsersListScreen> {
         await firestore
             .collection('users')
             .doc(currentUser!.uid)
-            .collection('connections')
-            .doc(userId)
-            .delete();
-        await firestore
-            .collection('users')
-            .doc(userId)
-            .collection('connections')
-            .doc(currentUser!.uid)
-            .delete();
+            .update({
+              'chatHistory': FieldValue.arrayRemove([userId]),
+            })
+            .catchError((_) {});
       }
       setState(() {
         _selectedUserIds.clear();
         _isSelectionMode = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Selected connections deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Chats removed')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete connections')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to remove chats')));
       }
     }
   }
@@ -201,17 +183,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
       );
     }
 
-    final connectionsCollection = FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser!.uid)
-        .collection('connections');
-
     return Column(
       children: [
         // 👇 Add Search Bar Here
-        // In UsersListScreen build method:
         AdvancedSearchBar(
-          hintText: "Search connections || Enter name",
+          hintText: "Search users to chat...",
           onSearchChanged: (value) {
             setState(() {
               searchQuery = value.toLowerCase().trim();
@@ -219,71 +195,44 @@ class _UsersListScreenState extends State<UsersListScreen> {
           },
           autoFocus: false,
         ),
-        // 👇 The rest of your existing logic wrapped in Expanded
+        // 👇 Display all users
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
-            stream: connectionsCollection
-                .where('status', isEqualTo: 'accepted')
-                .snapshots(),
-            builder: (context, connSnapshot) {
-              if (!connSnapshot.hasData) {
+            stream: searchQuery.isEmpty
+                ? FirebaseFirestore.instance.collection('users').snapshots()
+                : FirebaseFirestore.instance
+                      .collection('users')
+                      .where('name', isGreaterThanOrEqualTo: searchQuery)
+                      .where('name', isLessThan: '${searchQuery}z')
+                      .snapshots(),
+            builder: (context, usersSnapshot) {
+              if (!usersSnapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final acceptedIds = connSnapshot.data!.docs
-                  .map((d) => d.id)
+              final allUsers = usersSnapshot.data!.docs
+                  .where((doc) => doc.id != currentUser!.uid)
                   .toList();
 
-              if (acceptedIds.isEmpty) {
+              if (allUsers.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.people_outline,
+                        Icons.person_search,
                         size: 80,
                         color: Colors.grey.shade400,
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No connections yet',
+                        searchQuery.isEmpty
+                            ? 'No users available'
+                            : 'No users found',
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.grey.shade600,
                           fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Start connecting with people to chat!',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ConnectionsDiscoveryScreen(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.search),
-                        label: const Text('Discover Connections'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAFAB),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
                         ),
                       ),
                     ],
@@ -291,356 +240,381 @@ class _UsersListScreenState extends State<UsersListScreen> {
                 );
               }
 
-              return StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .where(FieldPath.documentId, whereIn: acceptedIds)
-                    .snapshots(),
-                builder: (context, usersSnapshot) {
-                  if (!usersSnapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+              final userIds = <String>[];
+              final chatItems = <Map<String, dynamic>>[];
 
-                  var userDocs = usersSnapshot.data!.docs;
-                  if (userDocs.isEmpty) {
-                    return const Center(child: Text('No one found'));
-                  }
+              for (var userDoc in allUsers) {
+                final userData = userDoc.data() as Map<String, dynamic>;
+                final userId = userDoc.id;
+                final name = capitalize(
+                  userData['name'] as String? ?? 'Unknown',
+                );
+                final photoUrl = userData['photoUrl'] as String? ?? '';
+                final userRole = userData['role'] as String? ?? '';
+                final userStatus = userData['status'] as String? ?? 'offline';
+                final chatId = generateChatId(currentUser!.uid, userId);
 
-                  // Filter by search query
-                  userDocs = userDocs.where((userDoc) {
-                    final userData =
-                        userDoc.data() as Map<String, dynamic>? ?? {};
-                    final name = (userData['name'] ?? '')
-                        .toString()
-                        .toLowerCase();
-                    return name.contains(searchQuery);
-                  }).toList();
+                userIds.add(userId);
+                chatItems.add({
+                  'userId': userId,
+                  'name': name,
+                  'photoUrl': photoUrl,
+                  'role': userRole,
+                  'status': userStatus,
+                  'chatId': chatId,
+                });
+              }
 
-                  if (userDocs.isEmpty) {
-                    return const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'No matches found',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Try a different search term',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
+              return Stack(
+                children: [
+                  ListView.builder(
+                    itemCount: chatItems.length,
+                    itemBuilder: (context, index) {
+                      final item = chatItems[index];
+                      final userId = item['userId'] as String;
+                      final chatId = item['chatId'] as String;
+                      final userName = item['name'] as String;
+                      final photoUrl = item['photoUrl'] as String;
+                      final role = item['role'] as String;
+                      final status = item['status'] as String;
 
-                  final chatItems = <Map<String, dynamic>>[];
+                      final isOnline =
+                          status == 'online' ||
+                          status == 'active' ||
+                          status == 'available';
 
-                  for (var userDoc in userDocs) {
-                    final userData = userDoc.data() as Map<String, dynamic>;
-                    final userId = userDoc.id;
-                    final name = capitalize(userData['name'] ?? 'No Name');
-                    final photoUrl = userData['photoUrl'] ?? '';
-                    final chatId = generateChatId(currentUser!.uid, userId);
+                      return StreamBuilder<Map<String, dynamic>?>(
+                        stream: getLastMessage(chatId),
+                        builder: (context, msgSnapshot) {
+                          final lastMessage =
+                              msgSnapshot.data?['text'] ?? 'No messages yet';
+                          final timestampData = msgSnapshot.data?['timestamp'];
+                          String formattedTime = '';
 
-                    chatItems.add({
-                      'userId': userId,
-                      'name': name,
-                      'photoUrl': photoUrl,
-                      'chatId': chatId,
-                    });
-                  }
+                          if (timestampData != null) {
+                            DateTime messageDate;
+                            if (timestampData is Timestamp) {
+                              messageDate = timestampData.toDate();
+                            } else if (timestampData is int) {
+                              messageDate = DateTime.fromMillisecondsSinceEpoch(
+                                timestampData,
+                              );
+                            } else {
+                              messageDate = DateTime.now();
+                            }
 
-                  return Stack(
-                    children: [
-                      ListView.builder(
-                        itemCount: chatItems.length,
-                        itemBuilder: (context, index) {
-                          final item = chatItems[index];
-                          final chatId = item['chatId'];
-                          final userId = item['userId'];
+                            final now = DateTime.now();
+                            final difference = now.difference(messageDate);
 
-                          return StreamBuilder<Map<String, dynamic>?>(
-                            stream: getLastMessage(chatId),
-                            builder: (context, msgSnapshot) {
-                              final lastMessage =
-                                  msgSnapshot.data?['text'] ?? '';
-                              final timestamp =
-                                  msgSnapshot.data?['timestamp'] as Timestamp?;
-                              final formattedTime = timestamp != null
-                                  ? DateFormat(
-                                      'HH:mm',
-                                    ).format(timestamp.toDate())
-                                  : '';
+                            if (difference.inDays == 0) {
+                              formattedTime = DateFormat(
+                                'HH:mm',
+                              ).format(messageDate);
+                            } else if (difference.inDays == 1) {
+                              formattedTime = 'Yesterday';
+                            } else if (difference.inDays < 7) {
+                              formattedTime = '${difference.inDays}d ago';
+                            } else {
+                              formattedTime = DateFormat(
+                                'M/d',
+                              ).format(messageDate);
+                            }
+                          }
 
-                              return StreamBuilder<int>(
-                                stream: getUnreadCount(
-                                  chatId,
-                                  currentUser!.uid,
-                                ),
-                                builder: (context, unreadSnapshot) {
-                                  final unreadCount = unreadSnapshot.data ?? 0;
+                          return StreamBuilder<int>(
+                            stream: getUnreadCount(chatId, currentUser!.uid),
+                            builder: (context, unreadSnapshot) {
+                              final unreadCount = unreadSnapshot.data ?? 0;
 
-                                  return ListTile(
-                                    leading: _isSelectionMode
-                                        ? Checkbox(
-                                            value: _selectedUserIds.contains(
-                                              userId,
-                                            ),
-                                            onChanged: (bool? value) {
-                                              _toggleSelection(userId);
-                                            },
-                                          )
-                                        : CircleAvatar(
-                                            backgroundImage:
-                                                item['photoUrl'].isNotEmpty
-                                                ? NetworkImage(item['photoUrl'])
+                              return ListTile(
+                                leading: _isSelectionMode
+                                    ? Checkbox(
+                                        value: _selectedUserIds.contains(
+                                          userId,
+                                        ),
+                                        onChanged: (bool? value) {
+                                          _toggleSelection(userId);
+                                        },
+                                      )
+                                    : Stack(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 28,
+                                            backgroundImage: photoUrl.isNotEmpty
+                                                ? NetworkImage(photoUrl)
                                                 : null,
                                             backgroundColor:
                                                 Colors.grey.shade400,
-                                            child: item['photoUrl'].isEmpty
+                                            child: photoUrl.isEmpty
                                                 ? const Icon(
                                                     Icons.person,
                                                     color: Colors.white,
                                                   )
                                                 : null,
                                           ),
-                                    title: Text(
-                                      item['name'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
+                                          if (isOnline)
+                                            Positioned(
+                                              bottom: 0,
+                                              right: 0,
+                                              child: Container(
+                                                width: 12,
+                                                height: 12,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                    ),
-                                    subtitle: Text(
-                                      lastMessage.isNotEmpty
-                                          ? lastMessage
-                                          : 'Tap to chat',
+                                title: Text(
+                                  userName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (role.isNotEmpty)
+                                      Text(
+                                        role,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.blue[600],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    Text(
+                                      lastMessage,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         color: Colors.grey.shade600,
+                                        fontSize: 13,
                                       ),
                                     ),
-                                    trailing: _isSelectionMode
-                                        ? null
-                                        : Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              if (formattedTime.isNotEmpty)
-                                                Text(
-                                                  formattedTime,
-                                                  style: TextStyle(
-                                                    color: Colors.grey.shade600,
-                                                    fontSize: 12,
+                                  ],
+                                ),
+                                trailing: _isSelectionMode
+                                    ? null
+                                    : Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            formattedTime,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                          if (unreadCount > 0) ...[
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
                                                   ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                unreadCount.toString(),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
-                                              const SizedBox(height: 4),
-                                              if (unreadCount > 0)
-                                                Container(
-                                                  padding: const EdgeInsets.all(
-                                                    6,
-                                                  ),
-                                                  decoration:
-                                                      const BoxDecoration(
-                                                        color: Color(
-                                                          0xFF128C7E,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                onTap: _isSelectionMode
+                                    ? () => _toggleSelection(userId)
+                                    : () async {
+                                        await markMessagesAsRead(
+                                          chatId,
+                                          currentUser!.uid,
+                                        );
+                                        if (!mounted) return;
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ChatScreen(
+                                              chatId: chatId,
+                                              userId: userId,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                onLongPress: _isSelectionMode
+                                    ? null
+                                    : () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (_) {
+                                            return Container(
+                                              margin: const EdgeInsets.all(16),
+                                              child: SafeArea(
+                                                child: Material(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 8,
                                                         ),
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                  child: Text(
-                                                    unreadCount.toString(),
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                                    child: Column(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        ListTile(
+                                                          leading: Icon(
+                                                            Icons.check_box,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .primary,
+                                                          ),
+                                                          title: const Text(
+                                                            'Select',
+                                                          ),
+                                                          onTap: () {
+                                                            Navigator.pop(
+                                                              context,
+                                                            );
+                                                            _enterSelectionMode();
+                                                            _toggleSelection(
+                                                              userId,
+                                                            );
+                                                          },
+                                                        ),
+                                                        ListTile(
+                                                          leading: const Icon(
+                                                            Icons.block,
+                                                            color: Colors
+                                                                .redAccent,
+                                                          ),
+                                                          title: const Text(
+                                                            'Block User',
+                                                          ),
+                                                          onTap: () {
+                                                            Navigator.pop(
+                                                              context,
+                                                            );
+                                                            _blockUser(userId);
+                                                          },
+                                                        ),
+                                                        ListTile(
+                                                          leading: const Icon(
+                                                            Icons.delete,
+                                                            color: Colors
+                                                                .redAccent,
+                                                          ),
+                                                          title: const Text(
+                                                            'Remove Chat',
+                                                          ),
+                                                          onTap: () {
+                                                            Navigator.pop(
+                                                              context,
+                                                            );
+                                                            _deleteConnection(
+                                                              userId,
+                                                            );
+                                                          },
+                                                        ),
+                                                        ListTile(
+                                                          leading: Icon(
+                                                            Icons.cancel,
+                                                            color: Colors
+                                                                .grey
+                                                                .shade600,
+                                                          ),
+                                                          title: const Text(
+                                                            'Cancel',
+                                                          ),
+                                                          onTap: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                              ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
-                                                ),
-                                            ],
-                                          ),
-                                    onTap: _isSelectionMode
-                                        ? () => _toggleSelection(userId)
-                                        : () async {
-                                            await markMessagesAsRead(
-                                              chatId,
-                                              currentUser!.uid,
-                                            );
-
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => ChatScreen(
-                                                  chatId: chatId,
-                                                  userId: userId,
                                                 ),
                                               ),
                                             );
                                           },
-                                    onLongPress: _isSelectionMode
-                                        ? null
-                                        : () {
-                                            showModalBottomSheet(
-                                              context: context,
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              builder: (_) {
-                                                return Container(
-                                                  margin: const EdgeInsets.all(
-                                                    16,
-                                                  ),
-                                                  child: SafeArea(
-                                                    child: Material(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            20,
-                                                          ),
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              vertical: 8,
-                                                            ),
-                                                        child: Column(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            ListTile(
-                                                              leading: const Icon(
-                                                                Icons.check_box,
-                                                                color:
-                                                                    Colors.blue,
-                                                              ),
-                                                              title: const Text(
-                                                                'Select',
-                                                              ),
-                                                              onTap: () {
-                                                                Navigator.pop(
-                                                                  context,
-                                                                );
-                                                                _enterSelectionMode();
-                                                                _toggleSelection(
-                                                                  userId,
-                                                                );
-                                                              },
-                                                            ),
-                                                            ListTile(
-                                                              leading: const Icon(
-                                                                Icons.block,
-                                                                color: Colors
-                                                                    .redAccent,
-                                                              ),
-                                                              title: const Text(
-                                                                'Block User',
-                                                              ),
-                                                              onTap: () {
-                                                                Navigator.pop(
-                                                                  context,
-                                                                );
-                                                                _blockUser(
-                                                                  userId,
-                                                                );
-                                                              },
-                                                            ),
-                                                            ListTile(
-                                                              leading: const Icon(
-                                                                Icons.delete,
-                                                                color: Colors
-                                                                    .redAccent,
-                                                              ),
-                                                              title: const Text(
-                                                                'Delete Connection',
-                                                              ),
-                                                              onTap: () {
-                                                                Navigator.pop(
-                                                                  context,
-                                                                );
-                                                                _deleteConnection(
-                                                                  userId,
-                                                                );
-                                                              },
-                                                            ),
-                                                            ListTile(
-                                                              leading: Icon(
-                                                                Icons.cancel,
-                                                                color: Colors
-                                                                    .grey
-                                                                    .shade600,
-                                                              ),
-                                                              title: const Text(
-                                                                'Cancel',
-                                                              ),
-                                                              onTap: () =>
-                                                                  Navigator.pop(
-                                                                    context,
-                                                                  ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                            );
-                                          },
-                                  );
-                                },
+                                        );
+                                      },
                               );
                             },
                           );
                         },
-                      ),
-                      if (_isSelectionMode)
-                        Positioned(
-                          bottom: 16,
-                          left: 16,
-                          right: 16,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () => _selectAll(chatItems),
-                                  icon: const Icon(Icons.select_all),
-                                  label: const Text('Select All'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
+                      );
+                    },
+                  ),
+                  if (_isSelectionMode)
+                    Positioned(
+                      bottom: 16,
+                      left: 16,
+                      right: 16,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _selectAll(userIds),
+                              icon: const Icon(Icons.select_all),
+                              label: const Text('Select All'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                                foregroundColor: Colors.white,
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _selectedUserIds.isEmpty
-                                      ? null
-                                      : _deleteSelectedConnections,
-                                  icon: const Icon(Icons.delete),
-                                  label: const Text('Delete Selected'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              IconButton(
-                                onPressed: _exitSelectionMode,
-                                icon: const Icon(Icons.cancel),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.grey,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                    ],
-                  );
-                },
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _selectedUserIds.isEmpty
+                                  ? null
+                                  : _deleteSelectedConnections,
+                              icon: const Icon(Icons.delete),
+                              label: const Text('Remove Selected'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          IconButton(
+                            onPressed: _exitSelectionMode,
+                            icon: const Icon(Icons.cancel),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.grey,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               );
             },
           ),

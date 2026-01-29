@@ -114,7 +114,7 @@ class FirebaseProductCard extends StatelessWidget {
                         ],
                       ),
                       child: const Icon(
-                        Icons.add_shopping_cart,
+                        Icons.shopping_cart_outlined,
                         color: Colors.white,
                         size: 16,
                       ),

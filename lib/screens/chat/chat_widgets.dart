@@ -8,8 +8,16 @@ import 'chat_controller.dart';
 class MessageTile extends StatelessWidget {
   final Map<String, dynamic> message;
   final VoidCallback? onLongPress;
+  final String? senderPhotoUrl;
+  final String? receiverPhotoUrl;
 
-  const MessageTile({super.key, required this.message, this.onLongPress});
+  const MessageTile({
+    super.key,
+    required this.message,
+    this.onLongPress,
+    this.senderPhotoUrl,
+    this.receiverPhotoUrl,
+  });
 
   String _formatTimeFromMillis(int? ms) {
     if (ms == null) return '';
@@ -51,22 +59,16 @@ class MessageTile extends StatelessWidget {
         : null;
     final time = _formatTimeFromMillis(timestamp);
 
-    final sentColor = Theme.of(context).brightness == Brightness.dark
-        ? const Color.fromARGB(255, 8, 107, 138)
-        : Colors.blue.shade500;
-    final failedColor = Colors.redAccent.shade400;
-    final receivedColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.grey.shade200;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
-    final bubbleColor = isMe
-        ? (status == 'failed' ? failedColor : sentColor)
-        : receivedColor;
+    final sentColor = isMe
+        ? (status == 'failed' ? Colors.redAccent.shade400 : primaryColor)
+        : (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200);
+
     final textColor = isMe
         ? Colors.white
-        : (Theme.of(context).brightness == Brightness.dark
-              ? Colors.white70
-              : Colors.black87);
+        : (isDarkMode ? Colors.white70 : Colors.black87);
 
     return GestureDetector(
       onLongPress: onLongPress,
@@ -86,12 +88,19 @@ class MessageTile extends StatelessWidget {
                 if (!isMe)
                   CircleAvatar(
                     radius: 16,
+                    backgroundImage:
+                        receiverPhotoUrl != null && receiverPhotoUrl!.isNotEmpty
+                        ? NetworkImage(receiverPhotoUrl!)
+                        : null,
                     backgroundColor: Colors.grey.shade400,
-                    child: const Icon(
-                      Icons.person,
-                      size: 16,
-                      color: Colors.white,
-                    ),
+                    child:
+                        (receiverPhotoUrl == null || receiverPhotoUrl!.isEmpty)
+                        ? const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: Colors.white,
+                          )
+                        : null,
                   ),
                 if (!isMe) const SizedBox(width: 8),
                 Flexible(
@@ -101,7 +110,7 @@ class MessageTile extends StatelessWidget {
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: bubbleColor,
+                      color: sentColor,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(18),
                         topRight: const Radius.circular(18),
@@ -126,6 +135,23 @@ class MessageTile extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (isMe) const SizedBox(width: 8),
+                if (isMe)
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundImage:
+                        senderPhotoUrl != null && senderPhotoUrl!.isNotEmpty
+                        ? NetworkImage(senderPhotoUrl!)
+                        : null,
+                    backgroundColor: Colors.grey.shade400,
+                    child: (senderPhotoUrl == null || senderPhotoUrl!.isEmpty)
+                        ? const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
               ],
             ),
             Padding(
@@ -143,7 +169,9 @@ class MessageTile extends StatelessWidget {
                     time,
                     style: TextStyle(
                       fontSize: 12,
-                      color: isMe ? Colors.blue.shade200 : Colors.grey.shade600,
+                      color: isDarkMode
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
                     ),
                   ),
                   if (isMe) const SizedBox(width: 6),
@@ -232,9 +260,9 @@ class ChatInputBar extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: accent.withOpacity(0.25),
+                    color: accent.withValues(alpha: 0.25),
                     blurRadius: 8,
-                    offset: Offset(0, 2),
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),

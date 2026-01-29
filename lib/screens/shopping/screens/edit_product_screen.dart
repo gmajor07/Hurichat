@@ -20,6 +20,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
   late TextEditingController _conditionController;
   late TextEditingController _descriptionController;
   late TextEditingController _imageUrlController;
+  late String _currency;
 
   bool _loading = false;
 
@@ -34,6 +35,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     _conditionController = TextEditingController(text: p.condition);
     _descriptionController = TextEditingController(text: p.description ?? '');
     _imageUrlController = TextEditingController(text: p.imageUrl);
+    _currency = p.currency;
   }
 
   Future<void> _updateProduct() async {
@@ -45,8 +47,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
       final updatedProduct = FirebaseProduct(
         id: widget.product.id,
         name: _nameController.text.trim(),
-        images: widget.product.images.isNotEmpty ? widget.product.images : [_imageUrlController.text.trim()],
+        images: widget.product.images.isNotEmpty
+            ? widget.product.images
+            : [_imageUrlController.text.trim()],
         price: double.tryParse(_priceController.text.trim()) ?? 0.0,
+        currency: _currency,
         category: _categoryController.text.trim(),
         subCategory: _subCategoryController.text.trim(),
         condition: _conditionController.text.trim(),
@@ -155,6 +160,28 @@ class _EditProductScreenState extends State<EditProductScreen> {
                       keyboardType: TextInputType.number,
                       validator: (val) =>
                           val == null || val.isEmpty ? 'Enter price' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // --- Currency ---
+                    DropdownButtonFormField<String>(
+                      value: _currency,
+                      decoration: _buildInputDecoration('Currency'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'TSH',
+                          child: Text('Tanzanian Shilling (TSH)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'USD',
+                          child: Text('US Dollar (USD)'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _currency = value ?? 'TSH';
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
 
