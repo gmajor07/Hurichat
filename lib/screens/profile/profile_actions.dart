@@ -66,8 +66,8 @@ class ProfileActions extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        if (onBecomeSeller != null)
+        if (onBecomeSeller != null) ...[
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -90,6 +90,7 @@ class ProfileActions extends StatelessWidget {
               ),
             ),
           ),
+        ],
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,

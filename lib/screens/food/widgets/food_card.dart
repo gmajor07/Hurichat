@@ -38,19 +38,7 @@ class FoodCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
-                child: Image.asset(
-                  food.imagePath,
-                  height: 100,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 100,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.fastfood, color: Colors.grey),
-                    );
-                  },
-                ),
+                child: _buildImage(),
               ),
 
               // Food Details
@@ -95,6 +83,56 @@ class FoodCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildImage() {
+    final isNetworkImage = food.imagePath.startsWith('http');
+
+    if (isNetworkImage) {
+      return Image.network(
+        food.imagePath,
+        height: 100,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 100,
+            color: Colors.grey[300],
+            child: const Icon(Icons.fastfood, color: Colors.grey),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 100,
+            width: double.infinity,
+            color: Colors.grey[300],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Image.asset(
+      food.imagePath,
+      height: 100,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: 100,
+          color: Colors.grey[300],
+          child: const Icon(Icons.fastfood, color: Colors.grey),
+        );
+      },
     );
   }
 }

@@ -15,6 +15,7 @@ import '../widgets/restaurant_card.dart';
 import '../models/food_item.dart';
 import '../models/restaurant.dart';
 import '../constants/app_constants.dart';
+import 'restaurant_details_screen.dart';
 
 class FoodScreen extends StatefulWidget {
   const FoodScreen({super.key});
@@ -30,84 +31,72 @@ class _FoodScreenState extends State<FoodScreen> {
   bool _isLoading = true;
   List<FirebaseProduct> _allFoodProducts = [];
   List<FirebaseProduct> _filteredFoodProducts = [];
-  List<Restaurant> _nearbyRestaurants = [];
+  List<Restaurant> _restaurants = [];
+  Restaurant? _selectedRestaurant;
 
   @override
   void initState() {
     super.initState();
-    _loadFoodProducts();
-    _loadNearbyRestaurants();
+    _loadData();
   }
 
-  Future<void> _loadNearbyRestaurants() async {
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection("businesses")
-          .where("serviceType", isEqualTo: "food")
-          .get();
-
-      final restaurants = snap.docs.map((doc) {
-        final data = doc.data();
-        // Use imageUrl from database if available, otherwise use default
-        String imagePath = data['imageUrl'] ?? 'assets/images/food/1.png';
-
-        return Restaurant(
-          id: doc.id,
-          name: data['name'] ?? 'Unknown Restaurant',
-          imagePath: imagePath,
-          distance:
-              1.5, // Default distance (can be calculated based on user location)
-          rating: 4.5, // Default rating
-          cuisine: 'Various', // Default cuisine
-          deliveryTime: 30, // Default delivery time in minutes
-        );
-      }).toList();
-
-      setState(() {
-        _nearbyRestaurants = restaurants;
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print("❌ Failed to load restaurants: $e");
-      }
-    }
-  }
-
-  Future<void> _loadFoodProducts() async {
+  Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final snap = await FirebaseFirestore.instance
+      // Load Food Products
+      final productSnap = await FirebaseFirestore.instance
           .collection("products")
           .where("sellerType", isEqualTo: "food")
           .where("status", isEqualTo: "active")
           .get();
 
-      _allFoodProducts = snap.docs
+      _allFoodProducts = productSnap.docs
           .map((doc) => FirebaseProduct.fromMap(doc.id, doc.data()))
           .toList();
+
+      // Load Restaurants (Businesses of type 'food')
+      final businessSnap = await FirebaseFirestore.instance
+          .collection("businesses")
+          .where("serviceType", isEqualTo: "food")
+          .get();
+
+      _restaurants = businessSnap.docs.map((doc) {
+        final data = doc.data();
+        return Restaurant(
+          id: data['userId'] ?? doc.id,
+          name: data['name'] ?? 'Restaurant',
+          imagePath: data['imageUrl'] ?? 'assets/images/food/6.png',
+          distance: 1.0,
+          rating: 4.5,
+          cuisine: data['description'] ?? 'Local',
+          deliveryTime: 30,
+        );
+      }).toList();
 
       _filterFoods();
     } catch (e) {
       if (kDebugMode) {
-        print("❌ Failed to load food products: $e");
+        print("❌ Failed to load food data: $e");
       }
     }
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _refreshData() async {
-    await Future.wait([_loadFoodProducts(), _loadNearbyRestaurants()]);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _filterFoods() {
     setState(() {
       _filteredFoodProducts = _allFoodProducts.where((food) {
+        // Search query filter
         final matchesSearch = food.name.toLowerCase().contains(
           _searchQuery.toLowerCase(),
         );
-        final matchesCategory =
-            _selectedCategory == 'All' ||
+
+        // Category filter
+        final matchesCategory = _selectedCategory == 'All' ||
             food.category.toLowerCase() == _selectedCategory.toLowerCase();
+
         return matchesSearch && matchesCategory;
       }).toList();
     });
@@ -130,8 +119,13 @@ class _FoodScreenState extends State<FoodScreen> {
   }
 
   void _onRestaurantTap(Restaurant restaurant) {
-    // Navigate to restaurant details
-    print('Restaurant tapped: ${restaurant.name}');
+    // Navigate to restaurant details screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RestaurantDetailsScreen(restaurant: restaurant),
+      ),
+    );
   }
 
   void _onAddToCart(FirebaseProduct product) {
@@ -158,10 +152,14 @@ class _FoodScreenState extends State<FoodScreen> {
     );
   }
 
-  List<FirebaseProduct> get wekaOrderFoods =>
-      _filteredFoodProducts.where((p) => p.category == 'Meals').toList();
+  // Today's Meals - show all available food items
+  List<FirebaseProduct> get todayMeals {
+    // Show all filtered food products (already filtered by search/category)
+    return _filteredFoodProducts;
+  }
+
   List<FirebaseProduct> get recommendedFoods =>
-      _filteredFoodProducts.take(5).toList();
+      _filteredFoodProducts.take(8).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -222,19 +220,16 @@ class _FoodScreenState extends State<FoodScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _refreshData,
+              onRefresh: _loadData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 🔍 Search Bar
                     AdvancedSearchBar(
-                      hintText: "What are you going to eat?",
+                      hintText: "Search for food or restaurants...",
                       onSearchChanged: (value) {
                         setState(() {
                           _searchQuery = value.toLowerCase().trim();
@@ -245,13 +240,43 @@ class _FoodScreenState extends State<FoodScreen> {
                     ),
                     const SizedBox(height: 20),
 
+                    // Restaurant selected indicator
+                    if (_selectedRestaurant != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Menu from: ',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            Text(
+                              _selectedRestaurant!.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedRestaurant = null;
+                                  _filterFoods();
+                                });
+                              },
+                              child: const Text('Show All'),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // 🍔 Category Title
-                    Text(
-                      "Choose Food",
+                    const Text(
+                      "Categories",
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -273,8 +298,7 @@ class _FoodScreenState extends State<FoodScreen> {
                               title: category['name']!,
                               imagePath: category['image']!,
                               colorScheme: colorScheme,
-                              onTap: () =>
-                                  _onCategorySelected(category['name']!),
+                              onTap: () => _onCategorySelected(category['name']!),
                               isSelected: _selectedCategory == category['name'],
                             );
                           }).toList(),
@@ -284,19 +308,19 @@ class _FoodScreenState extends State<FoodScreen> {
 
                     const SizedBox(height: 25),
 
-                    // 🍽️ Weka Order Section
+                    // 🍽️ Today's Meals Section
                     SectionHeader(
-                      title: AppConstants.wekaOrderTitle,
+                      title: "Today's Meals",
                       onSeeAllTap: () {},
                     ),
                     const SizedBox(height: 10),
-                    _buildFoodScrollSection(wekaOrderFoods, colorScheme),
+                    _buildFoodScrollSection(todayMeals, colorScheme),
 
                     const SizedBox(height: 25),
 
-                    // 🏠 Mgahawa Ulio Karibu Nawe
+                    // 🏠 Nearby Restaurants
                     SectionHeader(
-                      title: AppConstants.nearbyRestaurantsTitle,
+                      title: "Restaurants Near You",
                       onSeeAllTap: () {},
                     ),
                     const SizedBox(height: 10),
@@ -306,7 +330,7 @@ class _FoodScreenState extends State<FoodScreen> {
 
                     // ⭐ Recommended Section
                     SectionHeader(
-                      title: AppConstants.recommendedTitle,
+                      title: "Recommended for You",
                       onSeeAllTap: () {},
                     ),
                     const SizedBox(height: 10),
@@ -320,15 +344,22 @@ class _FoodScreenState extends State<FoodScreen> {
     );
   }
 
-  Widget _buildFoodScrollSection(
-    List<FirebaseProduct> foods,
-    ColorScheme scheme,
-  ) {
+  Widget _buildFoodScrollSection(List<FirebaseProduct> foods, ColorScheme scheme) {
     if (foods.isEmpty) {
       return Container(
         height: 180,
         alignment: Alignment.center,
-        child: const Text('No food items available in this category'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.restaurant_menu, color: Colors.grey[400], size: 40),
+            const SizedBox(height: 8),
+            Text(
+              'No items available',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
       );
     }
 
@@ -339,15 +370,14 @@ class _FoodScreenState extends State<FoodScreen> {
         itemCount: foods.length,
         itemBuilder: (context, index) {
           final product = foods[index];
-          // Convert FirebaseProduct to FoodItem for the widget
           final foodItem = FoodItem(
             id: product.id,
             name: product.name,
             imagePath: product.imageUrl,
             price: product.price.toDouble(),
             category: product.category,
-            rating: 4.5, // Default rating
-            preparationTime: 15, // Default time
+            rating: 4.5,
+            preparationTime: 15,
           );
           return FoodCard(
             food: foodItem,
@@ -360,14 +390,11 @@ class _FoodScreenState extends State<FoodScreen> {
   }
 
   Widget _buildRestaurantScrollSection(ColorScheme scheme) {
-    if (_nearbyRestaurants.isEmpty) {
+    if (_restaurants.isEmpty) {
       return Container(
         height: 150,
         alignment: Alignment.center,
-        child: const Text(
-          'No restaurants available yet',
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: const Text('No restaurants registered yet'),
       );
     }
 
@@ -375,12 +402,23 @@ class _FoodScreenState extends State<FoodScreen> {
       height: 150,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: _nearbyRestaurants.length,
+        itemCount: _restaurants.length,
         itemBuilder: (context, index) {
-          final restaurant = _nearbyRestaurants[index];
-          return RestaurantCard(
-            restaurant: restaurant,
-            onTap: () => _onRestaurantTap(restaurant),
+          final restaurant = _restaurants[index];
+          final isSelected = _selectedRestaurant?.id == restaurant.id;
+
+          return Opacity(
+            opacity: _selectedRestaurant == null || isSelected ? 1.0 : 0.5,
+            child: Container(
+              decoration: isSelected ? BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: scheme.primary, width: 2),
+              ) : null,
+              child: RestaurantCard(
+                restaurant: restaurant,
+                onTap: () => _onRestaurantTap(restaurant),
+              ),
+            ),
           );
         },
       ),
