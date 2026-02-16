@@ -8,10 +8,10 @@ import '../../provider/cart_provider.dart';
 import '../../shopping/models/firebase_product.dart';
 import '../../shopping/screens/customer_cart_screen.dart';
 import '../../shopping/screens/customer_product_details_screen.dart';
-import '../widgets/food_category_chip.dart';
 import '../widgets/section_header.dart';
 import '../widgets/food_card.dart';
 import '../widgets/restaurant_card.dart';
+import '../widgets/simple_category_chip.dart';
 import '../models/food_item.dart';
 import '../models/restaurant.dart';
 import '../constants/app_constants.dart';
@@ -93,13 +93,18 @@ class _FoodScreenState extends State<FoodScreen> {
           _searchQuery.toLowerCase(),
         );
 
-        // Category filter
-        final matchesCategory = _selectedCategory == 'All' ||
-            food.category.toLowerCase() == _selectedCategory.toLowerCase();
+        // Category filter - normalized exact matching like shopping screen
+        final matchesCategory =
+            _selectedCategory == 'All' ||
+            _normalize(food.category) == _normalize(_selectedCategory);
 
         return matchesSearch && matchesCategory;
       }).toList();
     });
+  }
+
+  String _normalize(String s) {
+    return s.trim().toLowerCase();
   }
 
   void _onCategorySelected(String category) {
@@ -223,7 +228,10 @@ class _FoodScreenState extends State<FoodScreen> {
               onRefresh: _loadData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -286,20 +294,19 @@ class _FoodScreenState extends State<FoodScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          FoodCategoryChip(
-                            title: 'All',
-                            imagePath: 'assets/images/food/6.png',
-                            colorScheme: colorScheme,
-                            onTap: () => _onCategorySelected('All'),
+                          SimpleCategoryChip(
+                            label: 'All',
                             isSelected: _selectedCategory == 'All',
+                            onTap: () => _onCategorySelected('All'),
                           ),
                           ...AppConstants.foodCategories.map((category) {
-                            return FoodCategoryChip(
-                              title: category['name']!,
-                              imagePath: category['image']!,
-                              colorScheme: colorScheme,
-                              onTap: () => _onCategorySelected(category['name']!),
-                              isSelected: _selectedCategory == category['name'],
+                            return SimpleCategoryChip(
+                              label: category['name']!,
+                              isSelected:
+                                  _normalize(_selectedCategory) ==
+                                  _normalize(category['name']!),
+                              onTap: () =>
+                                  _onCategorySelected(category['name']!),
                             );
                           }).toList(),
                         ],
@@ -309,10 +316,7 @@ class _FoodScreenState extends State<FoodScreen> {
                     const SizedBox(height: 25),
 
                     // 🍽️ Today's Meals Section
-                    SectionHeader(
-                      title: "Today's Meals",
-                      onSeeAllTap: () {},
-                    ),
+                    SectionHeader(title: "Today's Meals", onSeeAllTap: () {}),
                     const SizedBox(height: 10),
                     _buildFoodScrollSection(todayMeals, colorScheme),
 
@@ -344,7 +348,10 @@ class _FoodScreenState extends State<FoodScreen> {
     );
   }
 
-  Widget _buildFoodScrollSection(List<FirebaseProduct> foods, ColorScheme scheme) {
+  Widget _buildFoodScrollSection(
+    List<FirebaseProduct> foods,
+    ColorScheme scheme,
+  ) {
     if (foods.isEmpty) {
       return Container(
         height: 180,
@@ -410,10 +417,12 @@ class _FoodScreenState extends State<FoodScreen> {
           return Opacity(
             opacity: _selectedRestaurant == null || isSelected ? 1.0 : 0.5,
             child: Container(
-              decoration: isSelected ? BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: scheme.primary, width: 2),
-              ) : null,
+              decoration: isSelected
+                  ? BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: scheme.primary, width: 2),
+                    )
+                  : null,
               child: RestaurantCard(
                 restaurant: restaurant,
                 onTap: () => _onRestaurantTap(restaurant),

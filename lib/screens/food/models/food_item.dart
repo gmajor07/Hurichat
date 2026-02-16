@@ -23,13 +23,13 @@ class FoodItem {
     final priceStr = price.toStringAsFixed(0);
     final parts = <String>[];
     var remaining = priceStr;
-    
+
     while (remaining.length > 3) {
       parts.insert(0, remaining.substring(remaining.length - 3));
       remaining = remaining.substring(0, remaining.length - 3);
     }
     parts.insert(0, remaining);
-    
+
     return 'TZS ${parts.join(',')}';
   }
 

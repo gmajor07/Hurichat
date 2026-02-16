@@ -8,20 +8,18 @@ import '../../shopping/screens/customer_cart_screen.dart';
 import '../../shopping/screens/customer_product_details_screen.dart';
 import '../models/restaurant.dart';
 import '../widgets/food_card.dart';
-import '../widgets/food_category_chip.dart';
+import '../widgets/simple_category_chip.dart';
 import '../models/food_item.dart';
 import '../constants/app_constants.dart';
 
 class RestaurantDetailsScreen extends StatefulWidget {
   final Restaurant restaurant;
 
-  const RestaurantDetailsScreen({
-    super.key,
-    required this.restaurant,
-  });
+  const RestaurantDetailsScreen({super.key, required this.restaurant});
 
   @override
-  State<RestaurantDetailsScreen> createState() => _RestaurantDetailsScreenState();
+  State<RestaurantDetailsScreen> createState() =>
+      _RestaurantDetailsScreenState();
 }
 
 class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
@@ -40,7 +38,7 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
   Future<void> _loadRestaurantMenu() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
+
     try {
       // Load all food products from this restaurant
       final snapshot = await FirebaseFirestore.instance
@@ -57,9 +55,9 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
       _filterMenuItems();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading menu: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading menu: $e')));
       }
     }
 
@@ -72,19 +70,25 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
     setState(() {
       _filteredMenuItems = _allMenuItems.where((product) {
         // Search filter
-        final matchesSearch = product.name.toLowerCase().contains(
-          _searchQuery.toLowerCase(),
-        ) || (product.description?.toLowerCase().contains(
-          _searchQuery.toLowerCase(),
-        ) ?? false);
+        final matchesSearch =
+            product.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            (product.description?.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ??
+                false);
 
-        // Category filter
-        final matchesCategory = _selectedCategory == 'All' ||
-            product.category.toLowerCase() == _selectedCategory.toLowerCase();
+        // Category filter - normalized exact matching
+        final matchesCategory =
+            _selectedCategory == 'All' ||
+            _normalize(product.category) == _normalize(_selectedCategory);
 
         return matchesSearch && matchesCategory;
       }).toList();
     });
+  }
+
+  String _normalize(String s) {
+    return s.trim().toLowerCase();
   }
 
   void _onCategorySelected(String category) {
@@ -189,7 +193,10 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
               onRefresh: _loadRestaurantMenu,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -223,20 +230,19 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          FoodCategoryChip(
-                            title: 'All',
-                            imagePath: 'assets/images/food/6.png',
-                            colorScheme: colorScheme,
-                            onTap: () => _onCategorySelected('All'),
+                          SimpleCategoryChip(
+                            label: 'All',
                             isSelected: _selectedCategory == 'All',
+                            onTap: () => _onCategorySelected('All'),
                           ),
                           ...AppConstants.foodCategories.map((category) {
-                            return FoodCategoryChip(
-                              title: category['name']!,
-                              imagePath: category['image']!,
-                              colorScheme: colorScheme,
-                              onTap: () => _onCategorySelected(category['name']!),
-                              isSelected: _selectedCategory == category['name'],
+                            return SimpleCategoryChip(
+                              label: category['name']!,
+                              isSelected:
+                                  _normalize(_selectedCategory) ==
+                                  _normalize(category['name']!),
+                              onTap: () =>
+                                  _onCategorySelected(category['name']!),
                             );
                           }).toList(),
                         ],
@@ -327,10 +333,7 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
                 // Cuisine type
                 Text(
                   widget.restaurant.cuisine,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 ),
               ],
             ),
@@ -351,10 +354,7 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
               const SizedBox(height: 16),
               Text(
                 'No items available',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 16),
               ),
             ],
           ),
