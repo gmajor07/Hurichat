@@ -18,6 +18,7 @@ class FirebaseProduct {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int soldCount; // New field for tracking sales
+  final double? rating; // Average rating from reviews
   final num? discountPrice; // New field for discount pricing
   final String? discountDescription; // New field for discount info
 
@@ -39,6 +40,7 @@ class FirebaseProduct {
     this.createdAt,
     this.updatedAt,
     this.soldCount = 0,
+    this.rating,
     this.discountPrice,
     this.discountDescription,
   });
@@ -90,6 +92,15 @@ class FirebaseProduct {
           .toList();
     }
 
+    final dynamic rawRating =
+        data["rating"] ?? data["averageRating"] ?? data["avgRating"];
+    double? ratingValue;
+    if (rawRating is num) {
+      ratingValue = rawRating.toDouble();
+    } else if (rawRating is String) {
+      ratingValue = double.tryParse(rawRating);
+    }
+
     return FirebaseProduct(
       id: id,
       name: data["name"] ?? '',
@@ -108,6 +119,7 @@ class FirebaseProduct {
       createdAt: createdAt,
       updatedAt: updatedAt,
       soldCount: data["soldCount"] ?? 0,
+      rating: ratingValue,
       discountPrice: data["discountPrice"] is num
           ? data["discountPrice"]
           : null,
@@ -136,6 +148,7 @@ class FirebaseProduct {
           : FieldValue.serverTimestamp(),
       "updatedAt": FieldValue.serverTimestamp(),
       "soldCount": soldCount,
+      "rating": rating,
       "discountPrice": discountPrice,
       "discountDescription": discountDescription,
     };

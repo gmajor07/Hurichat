@@ -6,7 +6,9 @@ import '../../provider/cart_provider.dart';
 import '../models/cart_item.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  final List<String> selectedProductIds;
+
+  const CheckoutScreen({super.key, required this.selectedProductIds});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -25,104 +27,125 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
+    final checkoutItems = cartProvider.items
+        .where((item) => widget.selectedProductIds.contains(item.product.id))
+        .toList();
+    final totalsByCurrency = _totalsByCurrency(checkoutItems);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Order Summary
-            const Text(
-              'Order Summary',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ...cartProvider.items.map((item) => _buildOrderItem(item)),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  _formatPrice(cartProvider.totalAmount),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+      body: checkoutItems.isEmpty
+          ? const Center(child: Text('No selected items found in cart.'))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Order Summary',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Payment Method
-            const Text(
-              'Payment Method',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ..._paymentMethods.map(
-              (method) => RadioListTile<String>(
-                title: Text(method),
-                value: method,
-                groupValue: _selectedPaymentMethod,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPaymentMethod = value!;
-                  });
-                },
+                  const SizedBox(height: 8),
+                  Text(
+                    '${checkoutItems.length} product${checkoutItems.length > 1 ? 's' : ''} selected',
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 16),
+                  ...checkoutItems.map(_buildOrderItem),
+                  const Divider(),
+                  ...totalsByCurrency.entries.map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            entry.key == 'USD'
+                                ? 'Total (USD):'
+                                : 'Total (TSh):',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            cartProvider.formatAmountWithCurrency(
+                              currency: entry.key,
+                              amount: entry.value,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Payment Method',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  ..._paymentMethods.map(
+                    (method) => RadioListTile<String>(
+                      title: Text(method),
+                      value: method,
+                      groupValue: _selectedPaymentMethod,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedPaymentMethod = value!;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          _placeOrder(context, cartProvider, checkoutItems),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.green,
+                      ),
+                      child: const Text(
+                        'Place Order',
+                        style: TextStyle(fontSize: 18, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-
-            // Place Order Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _placeOrder(context, cartProvider),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.green,
-                ),
-                child: const Text(
-                  'Place Order',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildOrderItem(CartItem item) {
+    final hasImage = item.product.imageUrl.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          // Product image
           Container(
             width: 60,
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              image: item.product.imageUrl != null
+              image: hasImage
                   ? DecorationImage(
-                      image: NetworkImage(item.product.imageUrl!),
+                      image: NetworkImage(item.product.imageUrl),
                       fit: BoxFit.cover,
                     )
                   : null,
               color: Colors.grey[200],
             ),
-            child: item.product.imageUrl == null
-                ? const Icon(Icons.image, color: Colors.grey)
-                : null,
+            child: hasImage
+                ? null
+                : const Icon(Icons.image, color: Colors.grey),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -134,7 +157,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text('Quantity: ${item.quantity}'),
-                Text(_formatPrice(item.subtotal)),
+                Text(item.formattedSubtotal),
               ],
             ),
           ),
@@ -143,28 +166,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  String _formatPrice(double price) {
-    return '\$${_addCommas(price.toStringAsFixed(2))}';
-  }
-
-  String _addCommas(String price) {
-    // Simple comma formatting
-    List<String> parts = price.split('.');
-    String integerPart = parts[0];
-    String decimalPart = parts.length > 1 ? parts[1] : '00';
-
-    String formatted = '';
-    for (int i = integerPart.length - 1, count = 0; i >= 0; i--, count++) {
-      if (count % 3 == 0 && count > 0) {
-        formatted = ',' + formatted;
-      }
-      formatted = integerPart[i] + formatted;
+  Map<String, double> _totalsByCurrency(List<CartItem> items) {
+    final totals = <String, double>{};
+    for (final item in items) {
+      final currency = item.product.currency.toUpperCase();
+      totals[currency] = (totals[currency] ?? 0.0) + item.subtotal;
     }
-    return '$formatted.$decimalPart';
+    return totals;
   }
 
-  void _placeOrder(BuildContext context, CartProvider cartProvider) async {
-    // Show loading
+  void _placeOrder(
+    BuildContext context,
+    CartProvider cartProvider,
+    List<CartItem> checkoutItems,
+  ) async {
+    if (checkoutItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one item.')),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -172,31 +194,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
 
     try {
-      // Create order data
+      final totalsByCurrency = _totalsByCurrency(checkoutItems);
+      final totalAmount = checkoutItems.fold<double>(
+        0,
+        (total, item) => total + item.subtotal,
+      );
+
       final orderData = {
-        'items': cartProvider.items
+        'items': checkoutItems
             .map(
               (item) => {
                 'productId': item.product.id,
                 'productName': item.product.name,
                 'price': item.product.price,
+                'currency': item.product.currency,
                 'quantity': item.quantity,
                 'subtotal': item.subtotal,
               },
             )
             .toList(),
-        'totalAmount': cartProvider.totalAmount,
+        'totalAmount': totalAmount,
+        'totalsByCurrency': totalsByCurrency,
         'paymentMethod': _selectedPaymentMethod,
-        'status': 'completed', // or 'pending' for real payment
+        'status': 'completed',
         'timestamp': FieldValue.serverTimestamp(),
         'userId': FirebaseAuth.instance.currentUser?.uid ?? 'unknown_user',
       };
 
-      // Save to Firebase
       await FirebaseFirestore.instance.collection('orders').add(orderData);
 
-      // Update stock for each item
-      for (final item in cartProvider.items) {
+      for (final item in checkoutItems) {
         final productRef = FirebaseFirestore.instance
             .collection('products')
             .doc(item.product.id);
@@ -212,13 +239,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         });
       }
 
-      // Clear cart
-      cartProvider.clearCart();
+      for (final item in checkoutItems) {
+        cartProvider.removeItem(item.product.id);
+      }
 
-      // Hide loading
+      if (!context.mounted) return;
       Navigator.of(context).pop();
 
-      // Show success
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -227,13 +254,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Go back to cart
-                Navigator.of(
-                  context,
-                ).pop(); // Go back to shopping/product details
-                // If came from product details, one more pop might be needed
-                // but let's keep it simple for now
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
               },
               child: const Text('OK'),
             ),
@@ -241,10 +263,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       );
     } catch (e) {
-      // Hide loading
+      if (!context.mounted) return;
       Navigator.of(context).pop();
-
-      // Show error
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error placing order: $e')));

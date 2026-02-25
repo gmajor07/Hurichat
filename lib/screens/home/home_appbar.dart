@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import '../connection/discovery_connection_screen.dart';
+
 import '../connection/connection_request.dart';
+import '../connection/discovery_connection_screen.dart';
 
 AppBar buildHomeAppBar({
   required BuildContext context,
   required Color themeColor,
   required void Function(String value) onSelectMenu,
 }) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
   return AppBar(
     backgroundColor: Colors.transparent,
     elevation: 0,
     titleSpacing: 0,
-    title: Container(
+    title: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -21,16 +24,16 @@ AppBar buildHomeAppBar({
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black87,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, size: 22),
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey.shade800
-                : Colors.white,
+            icon: Icon(
+              Icons.more_vert,
+              size: 22,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            color: isDark ? Colors.grey.shade800 : Colors.white,
             onSelected: (value) {
               switch (value) {
                 case 'discover':

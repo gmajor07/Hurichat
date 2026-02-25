@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:huruchat/screens/transport_screen.dart';
+import '../food/screen/food_screen.dart';
 import '../shopping/screens/shopping_screen.dart';
 import '../theme/app_theme.dart';
 // ✅ IMPORTANT: Import the SellerProductsScreen for direct navigation
@@ -156,26 +157,7 @@ class HuruScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // Quick Actions
-            _buildSectionTitle('Quick Actions'),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              children: const [
-                _ActionButton(icon: Icons.qr_code, label: 'Scan & Pay'),
-                _ActionButton(
-                  icon: Icons.account_balance_wallet,
-                  label: 'Collect',
-                ),
-                _ActionButton(icon: Icons.sync_alt, label: 'Transfer'),
-                _ActionButton(icon: Icons.download, label: 'Deposit'),
-              ],
-            ),
-            const SizedBox(height: 24),
+     
 
             // Services
             _buildSectionTitle('Services'),
@@ -201,12 +183,12 @@ class HuruScreen extends StatelessWidget {
                 ),
                 _ActionButton(
                   icon: Icons.shopping_bag,
-                  label: 'Shopping',
+                  label: 'Food',
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ShoppingScreen(),
+                        builder: (context) => const FoodScreen(),
                       ),
                     );
                   },

@@ -69,6 +69,7 @@ class ProductItem {
       sellerType: firebaseProduct.sellerType,
       createdAt: firebaseProduct.createdAt,
       soldCount: firebaseProduct.soldCount,
+      rating: firebaseProduct.rating,
       discountPrice: firebaseProduct.discountPrice?.toString(),
       discountDescription: firebaseProduct.discountDescription,
       images: firebaseProduct.images,

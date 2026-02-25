@@ -17,10 +17,17 @@ class CartItem {
     return priceValue * quantity;
   }
 
+  String get currency => product.currency;
+
+  String get formattedUnitPrice =>
+      _formatPrice(product.price.toDouble(), product.currency);
+
   String get formattedSubtotal => _formatPrice(subtotal);
 
-  String _formatPrice(double price) {
-    return '\$${_addCommas(price.toStringAsFixed(2))}';
+  String _formatPrice(double price, [String? currencyCode]) {
+    final code = (currencyCode ?? product.currency).toUpperCase();
+    final symbol = code == 'USD' ? '\$' : 'TSh ';
+    return '$symbol${_addCommas(price.toStringAsFixed(2))}';
   }
 
   String _addCommas(String price) {
@@ -32,7 +39,7 @@ class CartItem {
     String formatted = '';
     for (int i = integerPart.length - 1, count = 0; i >= 0; i--, count++) {
       if (count % 3 == 0 && count > 0) {
-        formatted = ',' + formatted;
+        formatted = ',$formatted';
       }
       formatted = integerPart[i] + formatted;
     }

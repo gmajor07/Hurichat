@@ -1,7 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Make sure to import your actual theme file path here
-// import 'package:your_app/theme/app_theme.dart';
+import 'package:flutter/material.dart';
 
 class ReceiverDetailsScreen extends StatefulWidget {
   final String userId;
@@ -36,44 +34,54 @@ class _ReceiverDetailsScreenState extends State<ReceiverDetailsScreen> {
     }
   }
 
-  Widget _buildInfoRow(IconData icon, String title, String value) {
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String title,
+    required String value,
+    required bool isDark,
+  }) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.light
-            ? Colors.grey[50]
-            : Colors.grey[900],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black12,
+          width: 0.8,
+        ),
       ),
       child: Row(
         children: [
-          // Use primary color from theme
-          Icon(icon, color: const Color(0xFF4CAFaa), size: 22),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2B705).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: const Color(0xFFF2B705)),
+          ),
           const SizedBox(width: 12),
-          // Wrap in Expanded to prevent the 90px overflow error
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey,
+                    color: isDark ? Colors.white60 : Colors.black54,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).brightness == Brightness.light
-                        ? Colors.black87
-                        : Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ],
@@ -86,93 +94,190 @@ class _ReceiverDetailsScreenState extends State<ReceiverDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF4CAFaa);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final String name = (userData?['name'] as String?) ?? 'Unknown User';
+    final String phone = (userData?['phone'] as String?) ?? 'No phone number';
+    final String status = (userData?['status'] as String?) ?? 'Active';
+    final String? photoUrl = userData?['photoUrl'] as String?;
 
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF121212)
+          : const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title: Text("Friend"),
+        title: const Text('Friend Info'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 35,
-                    backgroundColor: Colors.grey[300],
-                    backgroundImage: userData?['photoUrl'] != null
-                        ? NetworkImage(userData!['photoUrl'] as String)
-                        : null,
-                    child: userData?['photoUrl'] == null
-                        ? Icon(Icons.person, size: 40, color: Colors.grey[600])
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1B1B1B) : Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.2 : 0.07,
+                          ),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        CircleAvatar(
+                          radius: 44,
+                          backgroundColor: Colors.grey.shade300,
+                          backgroundImage:
+                              (photoUrl != null && photoUrl.isNotEmpty)
+                              ? NetworkImage(photoUrl)
+                              : null,
+                          child: (photoUrl == null || photoUrl.isEmpty)
+                              ? Icon(
+                                  Icons.person,
+                                  size: 42,
+                                  color: Colors.grey.shade600,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
                         Text(
-                          userData?['name'] ?? 'Unknown User',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          name,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          userData?['phone'] ?? 'No phone number',
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          phone,
+                          style: TextStyle(
+                            color: isDark ? Colors.white60 : Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF2B705),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.call,
+                                      size: 18,
+                                      color: Colors.black87,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Call',
+                                      style: TextStyle(
+                                        color: Colors.black87,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF2A2A2A)
+                                      : const Color(0xFFF2F2F2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 18,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black87,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Message',
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black87,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Details',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildInfoTile(
+                    icon: Icons.phone_iphone_outlined,
+                    title: 'Phone Number',
+                    value: phone,
+                    isDark: isDark,
+                  ),
+                  _buildInfoTile(
+                    icon: Icons.circle,
+                    title: 'Status',
+                    value: status,
+                    isDark: isDark,
+                  ),
+                  if (userData?['gender'] != null)
+                    _buildInfoTile(
+                      icon: Icons.transgender,
+                      title: 'Gender',
+                      value: userData!['gender'].toString(),
+                      isDark: isDark,
+                    ),
+                  if (userData?['age'] != null)
+                    _buildInfoTile(
+                      icon: Icons.cake_outlined,
+                      title: 'Age',
+                      value: '${userData!['age']} years old',
+                      isDark: isDark,
+                    ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Personal Information',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(
-              Icons.phone_iphone_outlined,
-              'Phone Number',
-              userData?['phone'] ?? 'Not set',
-            ),
-            if (userData?['gender'] != null)
-              _buildInfoRow(
-                Icons.transgender,
-                'Gender',
-                userData!['gender'] as String,
-              ),
-            if (userData?['age'] != null)
-              _buildInfoRow(
-                Icons.cake_outlined,
-                'Age',
-                '${userData!['age']} years old',
-              ),
-            _buildInfoRow(
-              Icons.circle,
-              'Status',
-              userData?['status'] ?? 'Active',
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 }

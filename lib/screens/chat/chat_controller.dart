@@ -111,13 +111,16 @@ class ChatController {
           .doc(chatId);
       final docRef = await chatRef.collection('messages').add({
         'senderId': currentUser.uid,
+        'receiverId': userId,
         'text': localMessage['text'],
         'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
       });
 
       await chatRef.set({
         'lastMessage': localMessage['text'],
         'lastTimestamp': FieldValue.serverTimestamp(),
+        'last_message_timestamp': FieldValue.serverTimestamp(),
         'members': [currentUser.uid, userId],
       }, SetOptions(merge: true));
 

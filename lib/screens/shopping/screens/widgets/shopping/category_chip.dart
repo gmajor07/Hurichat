@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../constants/shopping_constants.dart';
 
 class CategoryChip extends StatelessWidget {
   final String label;
@@ -15,26 +14,49 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color selectedColor = const Color(0xFF0E7C86);
+
     return GestureDetector(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Chip(
-          backgroundColor: isSelected
-              ? ShoppingConstants.primaryColor.withOpacity(0.3)
-              : ShoppingConstants.primaryColor.withOpacity(0.15),
-          label: Text(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: isSelected
+                ? selectedColor
+                : (isDark ? const Color(0xFF1D232E) : Colors.white),
+            border: Border.all(
+              color: isSelected
+                  ? selectedColor
+                  : (isDark
+                        ? const Color(0xFF2F3643)
+                        : const Color(0xFFDFE6EE)),
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: selectedColor.withValues(alpha: 0.24),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
             label,
             style: TextStyle(
-              color: ShoppingConstants.primaryColor,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              fontSize: 14,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.white : const Color(0xFF213244)),
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              fontSize: 13,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          side: isSelected
-              ? BorderSide(color: ShoppingConstants.primaryColor, width: 1)
-              : BorderSide.none,
         ),
       ),
     );

@@ -48,5 +48,6 @@
     <!-- Google Sign-In Permissions -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
 
 </manifest>

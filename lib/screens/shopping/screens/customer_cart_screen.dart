@@ -30,67 +30,105 @@ class CustomerCartScreen extends StatelessWidget {
           : _buildCartWithItems(context, cartProvider),
       bottomNavigationBar: cartProvider.items.isEmpty
           ? null
-          : Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).canvasColor,
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+          : _buildBottomBar(context, cartProvider),
+    );
+  }
+
+  Widget _buildBottomBar(BuildContext context, CartProvider cartProvider) {
+    final selectedTotals = cartProvider.selectedTotalsByCurrency;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).canvasColor,
+        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Selected (${cartProvider.selectedItemCount}):',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total:',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        cartProvider.formattedTotalAmount,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CheckoutScreen(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.green,
-                      ),
-                      child: const Text(
-                        'Proceed to Checkout',
-                        style: TextStyle(fontSize: 18, color: Colors.white),
+              if (!cartProvider.hasSelection)
+                const Text(
+                  'Choose item(s)',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (cartProvider.hasSelection)
+            ...selectedTotals.entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      entry.key == 'USD' ? 'US Dollar' : 'Tanzanian Shilling',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Go back
-                    },
-                    child: const Text('Continue Shopping'),
-                  ),
-                ],
+                    Text(
+                      cartProvider.formatAmountWithCurrency(
+                        currency: entry.key,
+                        amount: entry.value,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: cartProvider.hasSelection
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CheckoutScreen(
+                            selectedProductIds: cartProvider.selectedProductIds
+                                .toList(),
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.green,
+              ),
+              child: const Text(
+                'Proceed to Checkout',
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Continue Shopping'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -117,7 +155,7 @@ class CustomerCartScreen extends StatelessWidget {
           const SizedBox(height: 30),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Go back to product screen
+              Navigator.pop(context);
             },
             child: const Text('Browse Products'),
           ),
@@ -129,50 +167,78 @@ class CustomerCartScreen extends StatelessWidget {
   Widget _buildCartWithItems(BuildContext context, CartProvider cartProvider) {
     return Column(
       children: [
-        // Cart summary
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: const EdgeInsets.all(12),
+              child: Column(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${cartProvider.itemCount} item${cartProvider.itemCount > 1 ? 's' : ''}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${cartProvider.itemCount} item${cartProvider.itemCount > 1 ? 's' : ''} in cart',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${cartProvider.selectedUniqueItemCount}/${cartProvider.uniqueItemCount} selected',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Total: ${cartProvider.formattedTotalAmount}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
+                      TextButton.icon(
+                        onPressed: () {
+                          _showClearCartDialog(context, cartProvider);
+                        },
+                        icon: const Icon(Icons.delete_outline, size: 16),
+                        label: const Text('Clear All'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
                         ),
                       ),
                     ],
                   ),
-                  TextButton.icon(
-                    onPressed: () {
-                      _showClearCartDialog(context, cartProvider);
-                    },
-                    icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('Clear All'),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: cartProvider.allItemsSelected,
+                        onChanged: (_) => cartProvider.toggleSelectAll(),
+                      ),
+                      Text(
+                        cartProvider.allItemsSelected
+                            ? 'Unselect All'
+                            : 'Select All',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const Spacer(),
+                      if (cartProvider.hasSelection)
+                        TextButton.icon(
+                          onPressed: cartProvider.removeSelectedItems,
+                          icon: const Icon(Icons.delete_sweep, size: 18),
+                          label: const Text('Remove Selected'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
         ),
-
-        // Cart items list
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -192,14 +258,27 @@ class CustomerCartScreen extends StatelessWidget {
     CartItem item,
     CartProvider cartProvider,
   ) {
+    final isSelected = cartProvider.isItemSelected(item.product.id);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isSelected ? Colors.green : Colors.transparent,
+          width: 1.2,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product image
+            Checkbox(
+              value: isSelected,
+              onChanged: (_) =>
+                  cartProvider.toggleItemSelection(item.product.id),
+            ),
             Container(
               width: 80,
               height: 80,
@@ -208,14 +287,10 @@ class CustomerCartScreen extends StatelessWidget {
                 image: DecorationImage(
                   image: NetworkImage(item.product.imageUrl),
                   fit: BoxFit.cover,
-                  onError: (exception, stackTrace) =>
-                      const Icon(Icons.broken_image),
                 ),
               ),
             ),
             const SizedBox(width: 12),
-
-            // Product details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +306,7 @@ class CustomerCartScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _formatPrice(item.product.price.toDouble()),
+                    item.formattedUnitPrice,
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.green,
@@ -239,8 +314,6 @@ class CustomerCartScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Quantity controls
                   Row(
                     children: [
                       IconButton(
@@ -315,25 +388,5 @@ class CustomerCartScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatPrice(double price) {
-    return '\$${_addCommas(price.toStringAsFixed(2))}';
-  }
-
-  String _addCommas(String price) {
-    // Simple comma formatting
-    List<String> parts = price.split('.');
-    String integerPart = parts[0];
-    String decimalPart = parts.length > 1 ? parts[1] : '00';
-
-    String formatted = '';
-    for (int i = integerPart.length - 1, count = 0; i >= 0; i--, count++) {
-      if (count % 3 == 0 && count > 0) {
-        formatted = ',$formatted';
-      }
-      formatted = integerPart[i] + formatted;
-    }
-    return '$formatted.$decimalPart';
   }
 }

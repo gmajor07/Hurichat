@@ -5,20 +5,23 @@ import 'product_card.dart';
 class ProductGrid extends StatelessWidget {
   final List<ProductItem> products;
   final Function(ProductItem)? onProductTap;
+  final Function(ProductItem)? onFavoriteTap;
   final Function(ProductItem)? onAddToCart;
+  final Set<String> favoriteProductIds;
 
   const ProductGrid({
     super.key,
     required this.products,
     this.onProductTap,
+    this.onFavoriteTap,
     this.onAddToCart,
+    this.favoriteProductIds = const {},
   });
 
   @override
   Widget build(BuildContext context) {
-    // Increased height to fit the new, taller ProductCard design
     return SizedBox(
-      height: 230, // Adjusted from 170 to 230
+      height: 272,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: products.length,
@@ -26,9 +29,11 @@ class ProductGrid extends StatelessWidget {
           final product = products[index];
           return ProductCard(
             product: product,
+            isFavorite: favoriteProductIds.contains(product.id),
             onTap: onProductTap != null ? () => onProductTap!(product) : null,
-            // We keep the onAddToCart handler in the ProductCard wrapper,
-            // but it's now visually removed from the card itself.
+            onFavoriteTap: onFavoriteTap != null
+                ? () => onFavoriteTap!(product)
+                : null,
             onAddToCart: onAddToCart != null
                 ? () => onAddToCart!(product)
                 : null,

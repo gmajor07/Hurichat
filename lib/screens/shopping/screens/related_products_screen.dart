@@ -104,7 +104,7 @@ class _RelatedProductsScreenState extends State<RelatedProductsScreen> {
           .collection('products')
           .doc(product.id)
           .get();
-      if (doc.exists) {
+      if (doc.exists && mounted) {
         final firebaseProduct = FirebaseProduct.fromMap(doc.id, doc.data()!);
         // Navigate to product details screen
         Navigator.push(
@@ -126,7 +126,7 @@ class _RelatedProductsScreenState extends State<RelatedProductsScreen> {
           .collection('products')
           .doc(product.id)
           .get();
-      if (doc.exists) {
+      if (doc.exists && mounted) {
         final firebaseProduct = FirebaseProduct.fromMap(doc.id, doc.data()!);
         final cartProvider = Provider.of<CartProvider>(context, listen: false);
         cartProvider.addItem(firebaseProduct);
@@ -144,8 +144,15 @@ class _RelatedProductsScreenState extends State<RelatedProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF12151B)
+          : const Color(0xFFF3F5F8),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
           _subCategoryLabel.isEmpty
               ? 'Related Products'
@@ -161,13 +168,52 @@ class _RelatedProductsScreenState extends State<RelatedProductsScreen> {
                 style: TextStyle(color: Colors.grey),
               ),
             )
-          : Padding(
-              padding: const EdgeInsets.all(8),
-              child: ProductGrid(
-                products: _products,
-                onProductTap: _onProductTap,
-                onAddToCart: _onAddToCart,
-              ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1B1F28) : Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.24 : 0.07,
+                        ),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.auto_awesome, color: Color(0xFF0E7C86)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_products.length} matched products',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: ProductGrid(
+                      products: _products,
+                      onProductTap: _onProductTap,
+                      onAddToCart: _onAddToCart,
+                    ),
+                  ),
+                ),
+              ],
             ),
     );
   }

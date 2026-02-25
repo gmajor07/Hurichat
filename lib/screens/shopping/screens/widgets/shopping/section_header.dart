@@ -14,30 +14,43 @@ class ShoppingSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
+    final textColor = isDark ? Colors.white : const Color(0xFF16263A);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             title,
             style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
               color: textColor,
             ),
           ),
           if (onSeeMoreTap != null)
-            GestureDetector(
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
               onTap: onSeeMoreTap,
-              child: Text(
-                ShoppingConstants.seeMoreText,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: ShoppingConstants.accentColor,
-                  fontWeight: FontWeight.w500,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: isDark
+                      ? const Color(0xFF222938)
+                      : const Color(0xFFEAF4F6),
+                ),
+                child: Text(
+                  ShoppingConstants.seeMoreText,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: ShoppingConstants.accentColor,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

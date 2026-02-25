@@ -4,12 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:huruchat/utils/phone_hash_utils.dart';
 
 class ProfileCompletionScreen extends StatefulWidget {
   const ProfileCompletionScreen({super.key});
 
   @override
-  _ProfileCompletionScreenState createState() =>
+  State<ProfileCompletionScreen> createState() =>
       _ProfileCompletionScreenState();
 }
 
@@ -40,6 +41,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen>
   @override
   void initState() {
     super.initState();
+    final authPhone = FirebaseAuth.instance.currentUser?.phoneNumber;
+    if (authPhone != null && authPhone.isNotEmpty) {
+      _phoneController.text = authPhone;
+    }
     // Initialize the animation controller
     _animationController = AnimationController(
       vsync: this,
@@ -124,9 +129,17 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen>
     }
 
     try {
+      final rawPhone = _phoneController.text.trim();
+      final normalizedPhone = normalizePhoneNumber(rawPhone);
+      final phoneHash = normalizedPhone.isEmpty
+          ? ''
+          : hashPhoneNumber(normalizedPhone);
+
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'phone': rawPhone,
+        'phoneNormalized': normalizedPhone,
+        'phoneHash': phoneHash,
         'gender': _selectedGender,
         'birthDate': _selectedDate,
         'age': age,

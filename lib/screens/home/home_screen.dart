@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // Screens
 import '../huru/discover.dart';
 import '../users_list_screen.dart';
-import '../food/screen/food_screen.dart';
+import '../service_screen.dart';
 import '../shopping/screens/shopping_screen.dart';
 import '../huru/huru_screen.dart';
 
@@ -26,51 +25,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0; // Start with UsersListScreen
   final Color themeColor = const Color(0xFF4CAFAB);
-  String firstName = '';
 
   final List<Widget> _screens = [
-    UsersListScreen(), // Chats (all users)
-    const FoodScreen(),
+    const UsersListScreen(), // Chats
+    const ServiceScreen(),
     const ShoppingScreen(),
     const DiscoverScreen(),
     const HuruScreen(),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserName();
-  }
-
-  Future<void> _fetchUserName() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-
-        if (doc.exists && mounted) {
-          setState(() {
-            firstName = _capitalizeName(doc.data()?['name'] ?? 'User');
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => firstName = 'User');
-      }
-    }
-  }
-
-  String _capitalizeName(String name) {
-    if (name.isEmpty) return name;
-    return name
-        .split(' ')
-        .map((w) => w[0].toUpperCase() + w.substring(1))
-        .join(' ');
-  }
 
   void _handleMenuSelection(String value, BuildContext context) {
     switch (value) {
@@ -129,36 +91,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool showHomeAppBar = _currentIndex == 0;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
-      appBar: buildHomeAppBar(
-        context: context,
-        themeColor: themeColor,
-        onSelectMenu: (value) => _handleMenuSelection(value, context),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Text(
-                  firstName,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: themeColor,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.waving_hand, color: themeColor, size: 18),
-              ],
-            ),
-          ),
-          Expanded(child: _screens[_currentIndex]),
-        ],
-      ),
+      extendBody: true,
+      appBar: showHomeAppBar
+          ? buildHomeAppBar(
+              context: context,
+              themeColor: themeColor,
+              onSelectMenu: (value) => _handleMenuSelection(value, context),
+            )
+          : null,
+      body: _screens[_currentIndex],
       bottomNavigationBar: buildBottomNavigationBar(
         context: context,
         currentIndex: _currentIndex,

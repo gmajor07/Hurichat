@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:huruchat/utils/phone_hash_utils.dart';
 
 class ConnectionsDiscoveryScreen extends StatefulWidget {
   const ConnectionsDiscoveryScreen({super.key});
@@ -14,13 +16,31 @@ class _ConnectionsDiscoveryScreenState
     extends State<ConnectionsDiscoveryScreen> {
   final currentUser = FirebaseAuth.instance.currentUser;
   final Color themeColor = const Color(0xFF4CAFAB);
+
   Set<String> connectedOrPendingIds = {};
+  List<Map<String, dynamic>> _discoveredUsers = [];
   bool _loading = true;
+  bool _syncingContacts = false;
+  String? _syncMessage;
+  int _contactCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadConnections();
+    _initializeDiscovery();
+  }
+
+  Future<void> _initializeDiscovery() async {
+    if (currentUser == null) {
+      setState(() {
+        _loading = false;
+        _syncMessage = 'Please sign in first.';
+      });
+      return;
+    }
+
+    await _loadConnections();
+    await _syncContactsAndDiscoverUsers();
   }
 
   Future<void> _loadConnections() async {
@@ -32,10 +52,127 @@ class _ConnectionsDiscoveryScreenState
         .collection('connections')
         .get();
 
+    connectedOrPendingIds = snapshot.docs.map((doc) => doc.id).toSet();
+  }
+
+  Future<void> _syncContactsAndDiscoverUsers() async {
+    if (currentUser == null) return;
+
     setState(() {
-      connectedOrPendingIds = snapshot.docs.map((doc) => doc.id).toSet();
-      _loading = false;
+      _syncingContacts = true;
+      _loading = true;
+      _syncMessage = null;
     });
+
+    try {
+      final hasPermission = await FlutterContacts.requestPermission(
+        readonly: true,
+      );
+
+      if (!hasPermission) {
+        setState(() {
+          _syncMessage = 'Contacts permission denied.';
+          _discoveredUsers = [];
+          _syncingContacts = false;
+          _loading = false;
+          _contactCount = 0;
+        });
+        return;
+      }
+
+      final contacts = await FlutterContacts.getContacts(withProperties: true);
+
+      final hashedNumbers = <String>{};
+      var phoneEntries = 0;
+
+      for (final contact in contacts) {
+        for (final phone in contact.phones) {
+          final normalized = normalizePhoneNumber(phone.number);
+          if (normalized.isEmpty) continue;
+          hashedNumbers.add(hashPhoneNumber(normalized));
+          phoneEntries++;
+        }
+      }
+
+      _contactCount = phoneEntries;
+
+      if (hashedNumbers.isEmpty) {
+        setState(() {
+          _syncMessage = 'No phone numbers found in contacts.';
+          _discoveredUsers = [];
+          _syncingContacts = false;
+          _loading = false;
+        });
+        return;
+      }
+
+      final discovered = await _findRegisteredUsersByHashes(
+        hashedNumbers.toList(),
+      );
+
+      discovered.sort((a, b) {
+        final nameA = (a['name'] ?? '').toString().toLowerCase();
+        final nameB = (b['name'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+
+      setState(() {
+        _discoveredUsers = discovered;
+        _syncMessage = discovered.isEmpty
+            ? 'No registered users found in your contacts.'
+            : null;
+        _syncingContacts = false;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _syncMessage = 'Failed to sync contacts.';
+        _discoveredUsers = [];
+        _syncingContacts = false;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _findRegisteredUsersByHashes(
+    List<String> hashes,
+  ) async {
+    final firestore = FirebaseFirestore.instance;
+    final discovered = <Map<String, dynamic>>[];
+    final seenUserIds = <String>{};
+
+    const chunkSize = 10;
+
+    for (var i = 0; i < hashes.length; i += chunkSize) {
+      final end = (i + chunkSize < hashes.length)
+          ? i + chunkSize
+          : hashes.length;
+      final chunk = hashes.sublist(i, end);
+
+      final snapshot = await firestore
+          .collection('users')
+          .where('phoneHash', whereIn: chunk)
+          .get();
+
+      for (final doc in snapshot.docs) {
+        if (doc.id == currentUser!.uid) continue;
+        if (connectedOrPendingIds.contains(doc.id)) continue;
+        if (seenUserIds.contains(doc.id)) continue;
+
+        final data = doc.data();
+        discovered.add({
+          'uid': doc.id,
+          'name': data['name'] ?? 'No Name',
+          'phone': data['phone'] ?? '',
+          'photoUrl': data['photoUrl'] ?? '',
+          'gender': data['gender'] ?? '',
+          'age': data['age']?.toString() ?? '',
+        });
+        seenUserIds.add(doc.id);
+      }
+    }
+
+    return discovered;
   }
 
   Future<void> _sendRequest(String targetUserId, String targetUserName) async {
@@ -43,7 +180,6 @@ class _ConnectionsDiscoveryScreenState
 
     final firestore = FirebaseFirestore.instance;
 
-    // For target user → receiver record
     await firestore
         .collection('users')
         .doc(targetUserId)
@@ -57,7 +193,6 @@ class _ConnectionsDiscoveryScreenState
           'timestamp': FieldValue.serverTimestamp(),
         });
 
-    // For current user → sender record
     await firestore
         .collection('users')
         .doc(currentUser!.uid)
@@ -71,8 +206,11 @@ class _ConnectionsDiscoveryScreenState
           'timestamp': FieldValue.serverTimestamp(),
         });
 
+    if (!mounted) return;
+
     setState(() {
       connectedOrPendingIds.add(targetUserId);
+      _discoveredUsers.removeWhere((user) => user['uid'] == targetUserId);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -85,13 +223,14 @@ class _ConnectionsDiscoveryScreenState
     );
   }
 
-  Widget _buildUserCard(Map<String, dynamic> data, String userId) {
+  Widget _buildUserCard(Map<String, dynamic> data) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final userId = data['uid'] as String;
     final name = data['name'] ?? 'No Name';
     final phone = data['phone'] ?? '';
-    final photoUrl = data['photoUrl'];
+    final photoUrl = data['photoUrl'] ?? '';
     final gender = data['gender'] ?? '';
-    final age = data['age']?.toString() ?? '';
+    final age = data['age'] ?? '';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -101,7 +240,7 @@ class _ConnectionsDiscoveryScreenState
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -109,16 +248,18 @@ class _ConnectionsDiscoveryScreenState
       ),
       child: Row(
         children: [
-          // Profile Avatar
           Container(
             width: 60,
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: themeColor.withOpacity(0.3), width: 2),
+              border: Border.all(
+                color: themeColor.withValues(alpha: 0.3),
+                width: 2,
+              ),
             ),
             child: ClipOval(
-              child: photoUrl != null && photoUrl.isNotEmpty
+              child: photoUrl.isNotEmpty
                   ? Image.network(
                       photoUrl,
                       fit: BoxFit.cover,
@@ -129,8 +270,6 @@ class _ConnectionsDiscoveryScreenState
             ),
           ),
           const SizedBox(width: 16),
-
-          // User Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,36 +283,33 @@ class _ConnectionsDiscoveryScreenState
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (phone.isNotEmpty) ...[
+                if (phone.toString().isNotEmpty) ...[
                   Text(
                     phone,
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 2),
                 ],
-                if (gender.isNotEmpty || age.isNotEmpty) ...[
+                if (gender.toString().isNotEmpty || age.toString().isNotEmpty)
                   Text(
                     [
-                      if (gender.isNotEmpty) gender,
-                      if (age.isNotEmpty) '$age years',
+                      if (gender.toString().isNotEmpty) gender.toString(),
+                      if (age.toString().isNotEmpty) '${age.toString()} years',
                     ].join(' • '),
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
-                ],
               ],
             ),
           ),
-
-          // Connect Button
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: themeColor.withOpacity(0.1),
+              color: themeColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              onPressed: () => _sendRequest(userId, name),
+              onPressed: () => _sendRequest(userId, name.toString()),
               icon: Icon(Icons.person_add_alt_1, color: themeColor, size: 20),
               tooltip: 'Send Connection Request',
             ),
@@ -221,103 +357,78 @@ class _ConnectionsDiscoveryScreenState
             color: isDark ? Colors.white : Colors.black87,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: _syncingContacts ? null : _syncContactsAndDiscoverUsers,
+            icon: _syncingContacts
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    Icons.sync,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+            tooltip: 'Sync Contacts',
+          ),
+        ],
         centerTitle: true,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final allUsers = snapshot.data!.docs
-                    .where((doc) => doc.id != currentUser!.uid)
-                    .where((doc) => !connectedOrPendingIds.contains(doc.id))
-                    .toList();
-
-                if (allUsers.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 80,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No users available',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'All users are already connected or pending',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade500,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: themeColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  );
-                }
-
-                return Column(
-                  children: [
-                    // Header Info
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                    child: Text(
+                      'Synced $_contactCount contact numbers • Found ${_discoveredUsers.length} registered users',
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.black87,
+                        fontWeight: FontWeight.w500,
                       ),
-                      decoration: BoxDecoration(
-                        color: themeColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: themeColor.withOpacity(0.2)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, color: themeColor, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Discover and connect with people around you',
-                              style: TextStyle(
-                                color: themeColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _discoveredUsers.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 80,
+                                color: Colors.grey.shade400,
                               ),
-                            ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _syncMessage ?? 'No users available',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey.shade600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-
-                    // Users List
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: allUsers.length,
-                        itemBuilder: (context, index) {
-                          final data =
-                              allUsers[index].data() as Map<String, dynamic>;
-                          final userId = allUsers[index].id;
-                          return _buildUserCard(data, userId);
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
+                        )
+                      : ListView.builder(
+                          itemCount: _discoveredUsers.length,
+                          itemBuilder: (context, index) {
+                            final data = _discoveredUsers[index];
+                            return _buildUserCard(data);
+                          },
+                        ),
+                ),
+              ],
             ),
     );
   }

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'advanced_search_bar.dart';
 
-class TransportScreen extends StatefulWidget {
-  const TransportScreen({super.key});
+class ServiceScreen extends StatefulWidget {
+  const ServiceScreen({super.key});
 
   @override
-  State<TransportScreen> createState() => _TransportScreenState();
+  State<ServiceScreen> createState() => _ServiceScreenState();
 }
 
-class _TransportScreenState extends State<TransportScreen> {
+class _ServiceScreenState extends State<ServiceScreen> {
   String _searchQuery = '';
 
   @override
@@ -24,7 +24,7 @@ class _TransportScreenState extends State<TransportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AdvancedSearchBar(
-              hintText: "Search transport",
+              hintText: "Search services",
               onSearchChanged: (value) {
                 setState(() {
                   _searchQuery = value.toLowerCase().trim();
@@ -34,10 +34,8 @@ class _TransportScreenState extends State<TransportScreen> {
               margin: EdgeInsets.zero,
             ),
             const SizedBox(height: 12),
-
             _buildQuickActionsCard(colorScheme),
             const SizedBox(height: 12),
-
             if (sectionCards.isEmpty)
               Container(
                 width: double.infinity,
@@ -53,11 +51,10 @@ class _TransportScreenState extends State<TransportScreen> {
                   ),
                 ),
                 child: Text(
-                  'No transport options found for "$_searchQuery".',
+                  'No services found for "$_searchQuery".',
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
               ),
-
             for (final section in sectionCards) ...[
               _buildSectionCard(section, colorScheme, isDark),
               const SizedBox(height: 12),
@@ -80,16 +77,16 @@ class _TransportScreenState extends State<TransportScreen> {
         children: [
           Expanded(
             child: _buildQuickAction(
-              label: 'Book Ride',
-              icon: Icons.local_taxi_outlined,
-              onTap: () => _showComingSoon('Book Ride'),
+              label: 'Money',
+              icon: Icons.qr_code_scanner_rounded,
+              onTap: () => _showComingSoon('Money'),
             ),
           ),
           Expanded(
             child: _buildQuickAction(
-              label: 'Tickets',
-              icon: Icons.confirmation_number_outlined,
-              onTap: () => _showComingSoon('Tickets'),
+              label: 'Wallet',
+              icon: Icons.account_balance_wallet_outlined,
+              onTap: () => _showComingSoon('Wallet'),
             ),
           ),
         ],
@@ -204,7 +201,7 @@ class _TransportScreenState extends State<TransportScreen> {
   void _showComingSoon(String service) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('$service coming soon')));
+    ).showSnackBar(SnackBar(content: Text('$service service coming soon')));
   }
 
   List<_ServiceSection> get _filteredSections {
@@ -228,58 +225,57 @@ class _TransportScreenState extends State<TransportScreen> {
 
   List<_ServiceSection> get _sections => [
     _ServiceSection(
-      title: 'Ride Services',
+      title: 'Financial Services',
       items: const [
         _ServiceItem(
-          'Ride-Hailing',
-          Icons.local_taxi_outlined,
-          Color(0xFFF4A940),
+          'Card Repay',
+          Icons.credit_card_outlined,
+          Color(0xFF2CB67D),
         ),
-        _ServiceItem(
-          'Car Rental',
-          Icons.directions_car_outlined,
-          Color(0xFF3AA6FF),
-        ),
-        _ServiceItem(
-          'Bike Rental',
-          Icons.pedal_bike_outlined,
-          Color(0xFF34C38F),
-        ),
-        _ServiceItem(
-          'Airport Pickup',
-          Icons.local_airport_outlined,
-          Color(0xFFE85D75),
-        ),
+        _ServiceItem('Wealth', Icons.pie_chart_outline, Color(0xFF3AA6FF)),
       ],
     ),
     _ServiceSection(
-      title: 'Public Transit',
+      title: 'Daily Services',
       items: const [
-        _ServiceItem('Bus', Icons.directions_bus_outlined, Color(0xFF2CB67D)),
-        _ServiceItem('Train', Icons.train_outlined, Color(0xFF4A90E2)),
-        _ServiceItem('Metro', Icons.subway_outlined, Color(0xFF47B8E0)),
         _ServiceItem(
-          'Rail & Flights',
-          Icons.flight_takeoff_outlined,
+          'Mobile Top Up',
+          Icons.phone_iphone_outlined,
+          Color(0xFF4A90E2),
+        ),
+        _ServiceItem('Utilities', Icons.verified_outlined, Color(0xFF2CB67D)),
+        _ServiceItem('QQ Coins', Icons.cloud_outlined, Color(0xFF47B8E0)),
+        _ServiceItem(
+          'Public Services',
+          Icons.location_city_outlined,
           Color(0xFF34C38F),
         ),
-      ],
-    ),
-    _ServiceSection(
-      title: 'Delivery & Logistics',
-      items: const [
         _ServiceItem(
-          'Send Package',
-          Icons.local_shipping_outlined,
+          'Charity',
+          Icons.volunteer_activism_outlined,
           Color(0xFFFF6B6B),
         ),
-        _ServiceItem('Track Parcel', Icons.route_outlined, Color(0xFF2CB67D)),
+        _ServiceItem('Health', Icons.add_box_outlined, Color(0xFFF4A940)),
+      ],
+    ),
+    _ServiceSection(
+      title: 'Shopping & Entertainment',
+      items: const [
         _ServiceItem(
-          'Moving Van',
-          Icons.fire_truck_outlined,
-          Color(0xFFF4A940),
+          'Brand Mall',
+          Icons.storefront_outlined,
+          Color(0xFFFF6B6B),
         ),
-        _ServiceItem('Freight', Icons.inventory_2_outlined, Color(0xFF3AA6FF)),
+        _ServiceItem('Specials', Icons.local_offer_outlined, Color(0xFFE85D75)),
+        _ServiceItem(
+          'Event Tickets',
+          Icons.confirmation_number_outlined,
+          Color(0xFFFF5A5F),
+        ),
+        _ServiceItem('Group Buying', Icons.groups_outlined, Color(0xFFF4A940)),
+        _ServiceItem('Buy Together', Icons.favorite_border, Color(0xFFE85D75)),
+        _ServiceItem('Flash Sales', Icons.flash_on_outlined, Color(0xFFD64D9D)),
+        _ServiceItem('Used Goods', Icons.recycling_outlined, Color(0xFFFF5A5F)),
       ],
     ),
   ];
