@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../connection/connection_request.dart';
-import '../connection/discovery_connection_screen.dart';
-
 AppBar buildHomeAppBar({
   required BuildContext context,
   required Color themeColor,
@@ -34,40 +31,8 @@ AppBar buildHomeAppBar({
               color: isDark ? Colors.white : Colors.black87,
             ),
             color: isDark ? Colors.grey.shade800 : Colors.white,
-            onSelected: (value) {
-              switch (value) {
-                case 'discover':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ConnectionsDiscoveryScreen(),
-                    ),
-                  );
-                  break;
-                case 'requests':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ConnectionRequestsScreen(),
-                    ),
-                  );
-                  break;
-                case 'logout':
-                  onSelectMenu(value);
-                  break;
-              }
-            },
+            onSelected: onSelectMenu,
             itemBuilder: (BuildContext context) => [
-              PopupMenuItem(
-                value: 'discover',
-                child: Row(
-                  children: [
-                    Icon(Icons.explore_outlined, color: themeColor),
-                    const SizedBox(width: 12),
-                    const Text('Discover Connections'),
-                  ],
-                ),
-              ),
               PopupMenuItem(
                 value: 'requests',
                 child: Row(
@@ -75,6 +40,39 @@ AppBar buildHomeAppBar({
                     Icon(Icons.person_add_outlined, color: themeColor),
                     const SizedBox(width: 12),
                     const Text('Connection Requests'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'add_contacts',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_add_alt_1, color: themeColor),
+                    const SizedBox(width: 12),
+                    const Text('Add Contacts'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'scan',
+                child: Row(
+                  children: [
+                    Icon(Icons.qr_code_scanner, color: themeColor),
+                    const SizedBox(width: 12),
+                    const Text('Scan'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'money',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: themeColor,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Money'),
                   ],
                 ),
               ),

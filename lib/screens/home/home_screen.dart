@@ -12,8 +12,8 @@ import '../huru/huru_screen.dart';
 import 'home_appbar.dart';
 import 'home_bottom_nav.dart';
 import 'home_fab.dart';
+import '../connection/connection_screen.dart';
 import '../connection/connection_request.dart';
-import '../connection/discovery_connection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,11 +45,21 @@ class _HomeScreenState extends State<HomeScreen> {
           MaterialPageRoute(builder: (_) => const ConnectionRequestsScreen()),
         );
         break;
-      case 'discover':
+      case 'add_contacts':
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => ConnectionsDiscoveryScreen()),
+          MaterialPageRoute(builder: (_) => const ConnectionScreen()),
         );
+        break;
+      case 'scan':
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Scan coming soon')));
+        break;
+      case 'money':
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Money coming soon')));
         break;
     }
   }

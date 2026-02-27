@@ -292,11 +292,8 @@ class _ConnectionsDiscoveryScreenState
         'Hi $name, join me on $appName so we can chat there. Download the app and message me once you sign up.';
 
     Future<void> openSmsApp() async {
-      final Uri smsUri = Uri(
-        scheme: 'sms',
-        path: phone,
-        queryParameters: {'body': inviteText},
-      );
+      final encodedBody = Uri.encodeComponent(inviteText);
+      final Uri smsUri = Uri.parse('sms:$phone?body=$encodedBody');
       final opened = await launchUrl(
         smsUri,
         mode: LaunchMode.externalApplication,
