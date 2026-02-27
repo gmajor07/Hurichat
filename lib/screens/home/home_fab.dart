@@ -39,6 +39,12 @@ Widget? buildFAB({
                 const SnackBar(content: Text('Money coming soon')),
               );
               break;
+            case 'discover_people':
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ConnectionsDiscoveryScreen()),
+              );
+              break;
           }
         },
         itemBuilder: (BuildContext context) => const [
@@ -71,6 +77,17 @@ Widget? buildFAB({
                 Icon(Icons.qr_code_scanner, color: Colors.white),
                 SizedBox(width: 12),
                 Text('Scan', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+          PopupMenuDivider(height: 8),
+          PopupMenuItem(
+            value: 'discover_people',
+            child: Row(
+              children: [
+                Icon(Icons.group_add, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Discover People', style: TextStyle(color: Colors.white)),
               ],
             ),
           ),

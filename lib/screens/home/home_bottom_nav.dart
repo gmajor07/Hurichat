@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 Widget buildBottomNavigationBar({
   required BuildContext context,
@@ -11,12 +12,11 @@ Widget buildBottomNavigationBar({
   final Color inactiveColor = isDark
       ? Colors.grey.shade400
       : Colors.grey.shade600;
+  final Color activeColor = themeColor.withValues(alpha: 0.95);
   const icons = [
-    Icons.chat_bubble_outline,
-    Icons.miscellaneous_services_outlined,
-    Icons.more_horiz,
-    Icons.lightbulb_outline,
-    Icons.person_outline,
+    Icons.handyman_outlined,
+    Icons.shopping_bag_outlined,
+    Icons.explore_outlined,
   ];
 
   return SafeArea(
@@ -30,15 +30,20 @@ Widget buildBottomNavigationBar({
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: isDark ? 0.34 : 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(icons.length, (index) {
+        children: List.generate(5, (index) {
           final bool selected = index == currentIndex;
           return InkWell(
             borderRadius: BorderRadius.circular(24),
@@ -49,14 +54,31 @@ Widget buildBottomNavigationBar({
               height: 48,
               decoration: BoxDecoration(
                 color: selected
-                    ? themeColor
+                    ? activeColor
                     : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected
+                      ? dockColor.withValues(alpha: 0.85)
+                      : Colors.transparent,
+                  width: 1.4,
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: activeColor.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                    : null,
               ),
-              child: Icon(
-                icons[index],
-                size: 22,
-                color: selected ? Colors.white : inactiveColor,
+              child: Center(
+                child: _buildNavIcon(
+                  index: index,
+                  color: selected ? Colors.white : inactiveColor,
+                  icons: icons,
+                ),
               ),
             ),
           );
@@ -64,4 +86,35 @@ Widget buildBottomNavigationBar({
       ),
     ),
   );
+}
+
+Widget _buildNavIcon({
+  required int index,
+  required Color color,
+  required List<IconData> icons,
+}) {
+  if (index == 0) {
+    return SvgPicture.asset(
+      'assets/icon/chat.svg',
+      width: 21,
+      height: 21,
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+    );
+  }
+  if (index == 4) {
+    return SvgPicture.asset(
+      'assets/icon/user.svg',
+      width: 21,
+      height: 21,
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+    );
+  }
+
+  final IconData icon = switch (index) {
+    1 => icons[0],
+    2 => icons[1],
+    3 => icons[2],
+    _ => Icons.help_outline,
+  };
+  return Icon(icon, size: 22, color: color);
 }

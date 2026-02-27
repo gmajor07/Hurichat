@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../provider/cart_provider.dart';
 import '../models/firebase_product.dart';
@@ -259,6 +260,14 @@ class _CustomerProductDetailsScreenState
     return '$formatted.$decimalPart';
   }
 
+  Widget _buildGalleryPlaceholder() {
+    return Container(
+      color: Colors.grey[300],
+      alignment: Alignment.center,
+      child: SvgPicture.asset('assets/icon/gallery.svg', width: 72, height: 72),
+    );
+  }
+
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Row(
       children: [
@@ -493,9 +502,7 @@ class _CustomerProductDetailsScreenState
                           widget.product.images[index],
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
-                              const Center(
-                                child: Icon(Icons.broken_image, size: 50),
-                              ),
+                              _buildGalleryPlaceholder(),
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return const Center(
@@ -506,18 +513,18 @@ class _CustomerProductDetailsScreenState
                       },
                     )
                   else if (widget.product.imageUrl.isNotEmpty)
-                    Image.network(widget.product.imageUrl, fit: BoxFit.cover)
+                    Image.network(
+                      widget.product.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildGalleryPlaceholder(),
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                    )
                   else
-                    Container(
-                      color: Colors.grey[300],
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          size: 50,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
+                    _buildGalleryPlaceholder(),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(

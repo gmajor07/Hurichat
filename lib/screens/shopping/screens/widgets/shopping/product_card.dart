@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../models/product_item.dart';
 import '../common/shimmer_loading.dart';
@@ -30,7 +31,7 @@ class ProductCard extends StatelessWidget {
     if (price == null || price.isEmpty) return '';
     final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
     final value = double.tryParse(clean) ?? 0;
-    final symbol = currency == 'USD' ? '\$' : 'Tsh';
+    final symbol = currency.toUpperCase() == 'USD' ? '\$' : 'TZS ';
     final formattedValue = value
         .toStringAsFixed(0)
         .replaceAllMapped(
@@ -60,6 +61,14 @@ class ProductCard extends StatelessWidget {
     return palette[seed % palette.length];
   }
 
+  Widget _buildImagePlaceholder() {
+    return Container(
+      color: Colors.white.withValues(alpha: 0.35),
+      alignment: Alignment.center,
+      child: SvgPicture.asset('assets/icon/gallery.svg', width: 34, height: 34),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasDiscount =
@@ -71,10 +80,9 @@ class ProductCard extends StatelessWidget {
 
     final int colorSeed = product.id.hashCode.abs();
     final Color tile = _tileColor(colorSeed);
-    final String ratingText = ((product.rating ?? 0).clamp(
-      0,
-      5,
-    )).toStringAsFixed(1);
+    final double ratingValue = (product.rating ?? 0).clamp(0, 5).toDouble();
+    final String ratingText = ratingValue.toStringAsFixed(1);
+    final bool hasRating = ratingValue > 0;
 
     return GestureDetector(
       onTap: onTap,
@@ -107,74 +115,37 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.star_rounded,
-                            size: 12,
-                            color: Color(0xFFFFC436),
-                          ),
-                          SizedBox(width: 2),
-                          Text(
-                            ratingText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF223849),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: Center(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: Container(
-                            width: 148,
-                            height: 102,
-                            color: Colors.white.withValues(alpha: 0.18),
-                            child: Hero(
-                              tag: 'product_image_${product.id}',
-                              child: Image.network(
-                                product.displayImage,
-                                fit: BoxFit.contain,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return const ShimmerLoading(
-                                        width: 120,
-                                        height: 68,
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(12),
-                                        ),
-                                      );
-                                    },
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.image_not_supported_outlined,
-                                  color: Color(0xFF506170),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 156,
+                        child: Hero(
+                          tag: 'product_image_${product.id}',
+                          child: Image.network(
+                            product.displayImage,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const ShimmerLoading(
+                                width: 120,
+                                height: 68,
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) =>
+                                _buildImagePlaceholder(),
                           ),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 10),
                     Text(
                       product.name.capitalizeFirst(),
                       maxLines: 1,
@@ -195,7 +166,27 @@ class ProductCard extends StatelessWidget {
                         color: Color(0xFF5A6E7E),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
+                    if (hasRating)
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 16,
+                            color: Color(0xFFFFB800),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            ratingText,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF102D3D),
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (hasRating) const SizedBox(height: 4),
                     Row(
                       children: [
                         Expanded(
@@ -204,7 +195,7 @@ class ProductCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF0B2433),
                               letterSpacing: -0.4,

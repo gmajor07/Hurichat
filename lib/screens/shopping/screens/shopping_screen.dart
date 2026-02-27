@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -38,6 +40,9 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   double _minAvailablePrice = 0;
   double _maxAvailablePrice = 1000000;
   RangeValues _priceRange = const RangeValues(0, 1000000);
+  final ScrollController _trendingScrollController = ScrollController();
+  Timer? _trendingAutoScrollTimer;
+  static const double _trendingScrollStep = 180;
 
   @override
   void initState() {
@@ -48,6 +53,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
   @override
   void dispose() {
+    _trendingAutoScrollTimer?.cancel();
+    _trendingScrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -172,6 +179,33 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
             matchesPrice;
       }).toList();
     });
+    _configureTrendingAutoScroll();
+  }
+
+  void _configureTrendingAutoScroll() {
+    _trendingAutoScrollTimer?.cancel();
+    if (_filteredProducts.length <= 2) return;
+
+    _trendingAutoScrollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted || !_trendingScrollController.hasClients) return;
+
+      final position = _trendingScrollController.position;
+      if (position.maxScrollExtent <= 0) return;
+
+      final bool atEnd = position.pixels >= position.maxScrollExtent - 8;
+      final double target = atEnd
+          ? 0
+          : (position.pixels + _trendingScrollStep).clamp(
+              0,
+              position.maxScrollExtent,
+            );
+
+      _trendingScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   void _onCategorySelected(String category) {
@@ -203,6 +237,10 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       _searchController.clear();
     });
     _filterProducts();
+  }
+
+  Future<void> _refreshShoppingData() async {
+    await Future.wait([_loadProducts(), _loadFavoriteProducts()]);
   }
 
   Future<void> _onProductTap(ProductItem product) async {
@@ -574,7 +612,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Shop',
+              'Huruchati Shopping',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             SizedBox(height: 2),
@@ -588,98 +626,103 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _buildPromoCard(isDark)),
-                SliverToBoxAdapter(child: _buildModernSearchBar(isDark)),
-                SliverToBoxAdapter(child: _buildFilterPanel(isDark)),
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 54,
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      scrollDirection: Axis.horizontal,
-                      children: _categories.map((category) {
-                        return CategoryChip(
-                          label: category,
-                          isSelected:
-                              _normalize(_selectedCategory) ==
-                              _normalize(category),
-                          onTap: () => _onCategorySelected(category),
-                        );
-                      }).toList(),
+          : RefreshIndicator(
+              onRefresh: _refreshShoppingData,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(child: _buildPromoCard(isDark)),
+                  SliverToBoxAdapter(child: _buildModernSearchBar(isDark)),
+                  SliverToBoxAdapter(child: _buildFilterPanel(isDark)),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 54,
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        scrollDirection: Axis.horizontal,
+                        children: _categories.map((category) {
+                          return CategoryChip(
+                            label: category,
+                            isSelected:
+                                _normalize(_selectedCategory) ==
+                                _normalize(category),
+                            onTap: () => _onCategorySelected(category),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
-                ),
-                if (_filteredProducts.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            size: 64,
-                            color: Colors.grey.shade500,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No products match your filters',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                  if (_filteredProducts.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 64,
+                              color: Colors.grey.shade500,
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          OutlinedButton(
-                            onPressed: _resetFilters,
-                            child: const Text('Clear filters'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else ...[
-                  if (_filteredProducts.length > 2)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: ShoppingSectionHeader(title: 'Trending now'),
-                      ),
-                    ),
-                  if (_filteredProducts.length > 2)
-                    SliverToBoxAdapter(
-                      child: ProductGrid(
-                        products: _filteredProducts.take(10).toList(),
-                        onProductTap: _onProductTap,
-                        onFavoriteTap: _toggleFavorite,
-                        favoriteProductIds: _favoriteProductIds,
-                      ),
-                    ),
-                  for (final entry in _productsByCategory.entries)
-                    if (entry.value.isNotEmpty) ...[
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: ShoppingSectionHeader(
-                            title: entry.key.isEmpty ? 'Other' : entry.key,
-                          ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No products match your filters',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton(
+                              onPressed: _resetFilters,
+                              child: const Text('Clear filters'),
+                            ),
+                          ],
                         ),
                       ),
+                    )
+                  else ...[
+                    if (_filteredProducts.length > 2)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: ShoppingSectionHeader(title: 'Trending now'),
+                        ),
+                      ),
+                    if (_filteredProducts.length > 2)
                       SliverToBoxAdapter(
                         child: ProductGrid(
-                          products: entry.value,
+                          products: _filteredProducts.take(10).toList(),
+                          scrollController: _trendingScrollController,
                           onProductTap: _onProductTap,
                           onFavoriteTap: _toggleFavorite,
                           favoriteProductIds: _favoriteProductIds,
                         ),
                       ),
-                    ],
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                    for (final entry in _productsByCategory.entries)
+                      if (entry.value.isNotEmpty) ...[
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: ShoppingSectionHeader(
+                              title: entry.key.isEmpty ? 'Other' : entry.key,
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: ProductGrid(
+                            products: entry.value,
+                            onProductTap: _onProductTap,
+                            onFavoriteTap: _toggleFavorite,
+                            favoriteProductIds: _favoriteProductIds,
+                          ),
+                        ),
+                      ],
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
                 ],
-              ],
+              ),
             ),
     );
   }

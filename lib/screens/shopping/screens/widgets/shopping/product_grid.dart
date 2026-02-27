@@ -8,6 +8,7 @@ class ProductGrid extends StatelessWidget {
   final Function(ProductItem)? onFavoriteTap;
   final Function(ProductItem)? onAddToCart;
   final Set<String> favoriteProductIds;
+  final ScrollController? scrollController;
 
   const ProductGrid({
     super.key,
@@ -16,13 +17,15 @@ class ProductGrid extends StatelessWidget {
     this.onFavoriteTap,
     this.onAddToCart,
     this.favoriteProductIds = const {},
+    this.scrollController,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 272,
+      height: 308,
       child: ListView.builder(
+        controller: scrollController,
         scrollDirection: Axis.horizontal,
         itemCount: products.length,
         itemBuilder: (context, index) {

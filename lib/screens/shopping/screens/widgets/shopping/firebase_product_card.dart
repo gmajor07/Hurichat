@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../constants/shopping_constants.dart';
 import '../../../models/firebase_product.dart';
@@ -15,15 +16,27 @@ class FirebaseProductCard extends StatelessWidget {
     this.onAddToCart,
   });
 
+  Widget _buildImagePlaceholder() {
+    return Container(
+      color: Colors.grey[300],
+      alignment: Alignment.center,
+      child: SvgPicture.asset('assets/icon/gallery.svg', width: 34, height: 34),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cardColor = Theme.of(context).cardColor;
+    final String priceText = product.price == product.price.toInt()
+        ? product.price.toInt().toString()
+        : product.price.toString();
+    final String formattedPrice = 'TZS $priceText';
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 120,
-        height: 160, // Fixed total height
+        height: 188,
         margin: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
           color: cardColor,
@@ -31,11 +44,11 @@ class FirebaseProductCard extends StatelessWidget {
             ShoppingConstants.cardBorderRadius,
           ),
           border: Border.all(
-            color: ShoppingConstants.primaryColor.withOpacity(0.3),
+            color: ShoppingConstants.primaryColor.withValues(alpha: 0.3),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -47,19 +60,13 @@ class FirebaseProductCard extends StatelessWidget {
             // Image Section - Fixed height
             Stack(
               children: [
-                Container(
-                  height: 100, // Fixed image height
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(ShoppingConstants.cardBorderRadius),
-                    ),
-                    color: Colors.grey[100],
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(ShoppingConstants.cardBorderRadius),
                   ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(ShoppingConstants.cardBorderRadius),
-                    ),
+                  child: SizedBox(
+                    height: 122,
+                    width: double.infinity,
                     child: product.imageUrl.isNotEmpty
                         ? Image.network(
                             product.imageUrl,
@@ -74,24 +81,10 @@ class FirebaseProductCard extends StatelessWidget {
                               );
                             },
                             errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey,
-                                  size: 40,
-                                ),
-                              );
+                              return _buildImagePlaceholder();
                             },
                           )
-                        : Container(
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
-                              size: 40,
-                            ),
-                          ),
+                        : _buildImagePlaceholder(),
                   ),
                 ),
                 // Cart Button
@@ -103,11 +96,13 @@ class FirebaseProductCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: ShoppingConstants.primaryColor.withOpacity(0.9),
+                        color: ShoppingConstants.primaryColor.withValues(
+                          alpha: 0.9,
+                        ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -127,7 +122,7 @@ class FirebaseProductCard extends StatelessWidget {
             // Content Section - Fixed height
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -146,10 +141,10 @@ class FirebaseProductCard extends StatelessWidget {
 
                     // Price
                     Text(
-                      "TZS ${product.price}",
+                      formattedPrice,
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
+                        fontSize: 12,
+                        color: Color(0xFF2A3B47),
                         fontWeight: FontWeight.bold,
                       ),
                     ),

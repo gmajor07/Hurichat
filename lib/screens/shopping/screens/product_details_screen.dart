@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/firebase_product.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
@@ -14,6 +15,21 @@ class ProductDetailsScreen extends StatefulWidget {
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   FirebaseProduct? product;
   Map<String, dynamic>? seller;
+
+  Widget _buildGalleryPlaceholder({double height = 280}) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      color: Colors.grey[300],
+      child: Center(
+        child: SvgPicture.asset(
+          'assets/icon/gallery.svg',
+          width: 72,
+          height: 72,
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -80,32 +96,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       );
                     },
                     errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 280,
-                        width: double.infinity,
-                        color: Colors.grey[300],
-                        child: const Center(
-                          child: Icon(
-                            Icons.broken_image,
-                            size: 80,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      );
+                      return _buildGalleryPlaceholder();
                     },
                   )
-                : Container(
-                    height: 280,
-                    width: double.infinity,
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        size: 80,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
+                : _buildGalleryPlaceholder(),
             // ---------------------------------------------------
 
             // --- Product Info Section ---
