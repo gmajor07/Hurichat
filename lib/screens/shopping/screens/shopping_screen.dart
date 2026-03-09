@@ -67,10 +67,12 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           .collection('products')
           .get();
 
-      _allProducts = firebaseSnap.docs
-          .map((doc) => FirebaseProduct.fromMap(doc.id, doc.data()))
-          .map(ProductItem.fromFirebaseProduct)
-          .toList();
+      _allProducts =
+          firebaseSnap.docs
+              .map((doc) => FirebaseProduct.fromMap(doc.id, doc.data()))
+              .map(ProductItem.fromFirebaseProduct)
+              .toList()
+            ..sort(_compareProductsForListing);
 
       final dynamicCategories =
           _allProducts
@@ -148,38 +150,53 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   }
 
   void _filterProducts() {
+    final matchedProducts = _allProducts.where((product) {
+      final matchesCategory =
+          _selectedCategory == 'All' ||
+          _normalize(product.category) == _normalize(_selectedCategory);
+
+      final query = _normalize(_searchQuery);
+      final searchable = [
+        _normalize(product.name),
+        _normalize(product.category),
+        _normalize(product.subCategory ?? ''),
+      ];
+      final matchesSearch =
+          query.isEmpty || searchable.any((field) => field.contains(query));
+
+      final matchesCondition =
+          _selectedCondition == 'All' ||
+          (product.condition?.toLowerCase() ?? '') ==
+              _selectedCondition.toLowerCase();
+
+      final productPrice = double.tryParse(product.price) ?? 0;
+      final matchesPrice =
+          productPrice >= _priceRange.start && productPrice <= _priceRange.end;
+
+      return matchesCategory &&
+          matchesSearch &&
+          matchesCondition &&
+          matchesPrice;
+    }).toList();
+
     setState(() {
-      _filteredProducts = _allProducts.where((product) {
-        final matchesCategory =
-            _selectedCategory == 'All' ||
-            _normalize(product.category) == _normalize(_selectedCategory);
-
-        final query = _normalize(_searchQuery);
-        final searchable = [
-          _normalize(product.name),
-          _normalize(product.category),
-          _normalize(product.subCategory ?? ''),
-        ];
-        final matchesSearch =
-            query.isEmpty || searchable.any((field) => field.contains(query));
-
-        final matchesCondition =
-            _selectedCondition == 'All' ||
-            (product.condition?.toLowerCase() ?? '') ==
-                _selectedCondition.toLowerCase();
-
-        final productPrice = double.tryParse(product.price) ?? 0;
-        final matchesPrice =
-            productPrice >= _priceRange.start &&
-            productPrice <= _priceRange.end;
-
-        return matchesCategory &&
-            matchesSearch &&
-            matchesCondition &&
-            matchesPrice;
-      }).toList();
+      _filteredProducts = _buildDistinctProducts(matchedProducts);
     });
     _configureTrendingAutoScroll();
+  }
+
+  List<ProductItem> _buildDistinctProducts(List<ProductItem> products) {
+    final distinctProducts = <ProductItem>[];
+    final seenTypeKeys = <String>{};
+
+    for (final product in products) {
+      final typeKey = _productTypeKey(product);
+      if (typeKey.isEmpty || seenTypeKeys.add(typeKey)) {
+        distinctProducts.add(product);
+      }
+    }
+
+    return distinctProducts;
   }
 
   void _configureTrendingAutoScroll() {
@@ -319,6 +336,37 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   String _normalize(String? value) {
     if (value == null) return '';
     return value.trim().toLowerCase();
+  }
+
+  String _productTypeKey(ProductItem product) {
+    final normalizedSubCategory = _normalize(product.subCategory);
+    if (normalizedSubCategory.isNotEmpty) {
+      return '${_normalize(product.category)}::$normalizedSubCategory';
+    }
+
+    final normalizedName = _normalize(product.name);
+    if (normalizedName.isNotEmpty) {
+      return '${_normalize(product.category)}::$normalizedName';
+    }
+
+    return _normalize(product.category);
+  }
+
+  int _compareProductsForListing(ProductItem a, ProductItem b) {
+    final createdAtComparison =
+        (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+          a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+        );
+    if (createdAtComparison != 0) {
+      return createdAtComparison;
+    }
+
+    final soldCountComparison = b.soldCount.compareTo(a.soldCount);
+    if (soldCountComparison != 0) {
+      return soldCountComparison;
+    }
+
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
   }
 
   String _normalizeCategoryLabel(String value) {

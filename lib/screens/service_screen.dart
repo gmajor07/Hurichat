@@ -127,6 +127,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
     ColorScheme scheme,
     bool isDark,
   ) {
+    final textScaleFactor = MediaQuery.textScalerOf(context).scale(1);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
@@ -147,49 +149,61 @@ class _ServiceScreenState extends State<ServiceScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: section.items.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.9,
-            ),
-            itemBuilder: (_, index) {
-              final item = section.items[index];
-              return InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => _showComingSoon(item.label),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: item.color.withValues(
-                          alpha: isDark ? 0.2 : 0.12,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(item.icon, color: item.color, size: 22),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item.label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final gridWidth = constraints.maxWidth;
+              final crossAxisCount = gridWidth < 320
+                  ? 2
+                  : gridWidth < 420
+                  ? 3
+                  : 4;
+              final mainAxisExtent = textScaleFactor > 1.15 ? 102.0 : 94.0;
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: section.items.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: mainAxisExtent,
                 ),
+                itemBuilder: (_, index) {
+                  final item = section.items[index];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _showComingSoon(item.label),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: item.color.withValues(
+                              alpha: isDark ? 0.2 : 0.12,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(item.icon, color: item.color, size: 22),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
           ),

@@ -43,10 +43,32 @@ class ProductCard extends StatelessWidget {
 
   String _subtitle() {
     final sub = (product.subCategory ?? '').trim();
+    final name = product.name.trim();
+    if (sub.isNotEmpty &&
+        name.isNotEmpty &&
+        sub.toLowerCase() != name.toLowerCase()) {
+      return name.capitalizeFirst();
+    }
+
+    if (product.category.trim().isNotEmpty) {
+      return '${product.category.capitalizeFirst()} product';
+    }
+
+    return '';
+  }
+
+  String _title() {
+    final sub = (product.subCategory ?? '').trim();
     if (sub.isNotEmpty) {
       return sub.capitalizeFirst();
     }
-    return '${product.category.capitalizeFirst()} product';
+
+    final name = product.name.trim();
+    if (name.isNotEmpty) {
+      return name.capitalizeFirst();
+    }
+
+    return product.category.capitalizeFirst();
   }
 
   Color _tileColor(int seed) {
@@ -147,7 +169,7 @@ class ProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      product.name.capitalizeFirst(),
+                      _title(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -157,15 +179,16 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      _subtitle(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF5A6E7E),
+                    if (_subtitle().isNotEmpty)
+                      Text(
+                        _subtitle(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF5A6E7E),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 6),
                     if (hasRating)
                       Row(
