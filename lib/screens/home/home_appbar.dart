@@ -17,9 +17,9 @@ AppBar buildHomeAppBar({
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'HuruChat',
+            'HuruChati',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.w700,
               color: isDark ? Colors.white : Colors.black87,
             ),

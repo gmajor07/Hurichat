@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'advanced_search_bar.dart';
 
 class ServiceScreen extends StatefulWidget {
   const ServiceScreen({super.key});
@@ -9,31 +8,43 @@ class ServiceScreen extends StatefulWidget {
 }
 
 class _ServiceScreenState extends State<ServiceScreen> {
-  String _searchQuery = '';
+  static const Color _quickActionColor = Color(0xFF4DB6B3);
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final sectionCards = _filteredSections;
+    final sectionCards = _sections;
 
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF12151B)
+          : const Color(0xFFF2F5F8),
+      appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: Colors.transparent,
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Service',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'Explore our wide range of services',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AdvancedSearchBar(
-              hintText: "Search services",
-              onSearchChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase().trim();
-                });
-              },
-              autoFocus: false,
-              margin: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 12),
             _buildQuickActionsCard(colorScheme),
             const SizedBox(height: 12),
             if (sectionCards.isEmpty)
@@ -51,7 +62,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
                   ),
                 ),
                 child: Text(
-                  'No services found for "$_searchQuery".',
+                  'No services available.',
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
               ),
@@ -66,54 +77,103 @@ class _ServiceScreenState extends State<ServiceScreen> {
   }
 
   Widget _buildQuickActionsCard(ColorScheme scheme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: BoxDecoration(
-        color: scheme.primary,
-        borderRadius: BorderRadius.circular(14),
+    final quickActions = [
+      (
+        label: 'Scan & Pay',
+        icon: Icons.qr_code_2_rounded,
+        service: 'Scan & Pay',
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildQuickAction(
-              label: 'Money',
-              icon: Icons.qr_code_scanner_rounded,
-              onTap: () => _showComingSoon('Money'),
-            ),
-          ),
-          Expanded(
-            child: _buildQuickAction(
-              label: 'Wallet',
-              icon: Icons.account_balance_wallet_outlined,
-              onTap: () => _showComingSoon('Wallet'),
-            ),
-          ),
-        ],
+      (
+        label: 'Collect',
+        icon: Icons.account_balance_wallet_rounded,
+        service: 'Collect',
       ),
+      (label: 'Transfer', icon: Icons.swap_horiz_rounded, service: 'Transfer'),
+      (label: 'Deposit', icon: Icons.download_rounded, service: 'Deposit'),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final crossAxisCount = width < 360 ? 2 : 4;
+            final tileWidth =
+                (width - ((crossAxisCount - 1) * 12)) / crossAxisCount;
+            final tileHeight = crossAxisCount == 2 ? 132.0 : 120.0;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: quickActions
+                  .map(
+                    (action) => SizedBox(
+                      width: tileWidth,
+                      child: _buildQuickAction(
+                        label: action.label,
+                        icon: action.icon,
+                        height: tileHeight,
+                        onTap: () => _showComingSoon(action.service),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ],
     );
   }
 
   Widget _buildQuickAction({
     required String label,
     required IconData icon,
+    required double height,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(22),
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: _quickActionColor,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: _quickActionColor.withValues(alpha: 0.28),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 30),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
+            Icon(icon, color: Colors.white, size: 34),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
               ),
             ),
           ],
@@ -216,25 +276,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('$service service coming soon')));
-  }
-
-  List<_ServiceSection> get _filteredSections {
-    final sections = _sections;
-    if (_searchQuery.isEmpty) return sections;
-
-    final query = _searchQuery;
-    return sections
-        .map((section) {
-          final matchedItems = section.items
-              .where((item) => item.label.toLowerCase().contains(query))
-              .toList();
-          if (section.title.toLowerCase().contains(query)) {
-            return section;
-          }
-          return _ServiceSection(title: section.title, items: matchedItems);
-        })
-        .where((section) => section.items.isNotEmpty)
-        .toList();
   }
 
   List<_ServiceSection> get _sections => [

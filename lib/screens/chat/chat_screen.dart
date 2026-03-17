@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../user_account/receiver_details_screen.dart';
 import 'chat_controller.dart';
+import 'chat_theme.dart';
 import 'chat_widgets.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -48,11 +49,20 @@ class _ChatScreenState extends State<ChatScreen> {
             .doc(receiverId)
             .snapshots(),
         builder: (context, snapshot) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+
           if (!snapshot.hasData) {
             return AppBar(
-              title: const Text('Loading...'),
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              elevation: 1,
+              backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+              elevation: 0,
+              surfaceTintColor: Colors.transparent,
+              title: Text(
+                'Loading...',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  fontSize: 16,
+                ),
+              ),
             );
           }
 
@@ -73,36 +83,64 @@ class _ChatScreenState extends State<ChatScreen> {
               status == 'online' || status == 'active' || status == 'available';
 
           return AppBar(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            elevation: 1,
-            shadowColor: Colors.black12,
+            backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
+            systemOverlayStyle: isDark
+                ? SystemUiOverlayStyle.light
+                : SystemUiOverlayStyle.dark,
             leading: IconButton(
               icon: Icon(
-                Icons.arrow_back_ios_new,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: isDark ? Colors.white : Colors.black87,
               ),
               onPressed: () => Navigator.pop(context),
             ),
             title: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ReceiverDetailsScreen(userId: receiverId),
-                  ),
-                );
-              },
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ReceiverDetailsScreen(userId: receiverId),
+                ),
+              ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundImage: photo.isNotEmpty
-                        ? NetworkImage(photo)
-                        : null,
-                    backgroundColor: Colors.grey.shade300,
-                    child: photo.isEmpty
-                        ? const Icon(Icons.person, color: Colors.white)
-                        : null,
+                  // Avatar with online dot
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundImage: photo.isNotEmpty
+                            ? NetworkImage(photo)
+                            : null,
+                        backgroundColor: Colors.grey.shade300,
+                        child: photo.isEmpty
+                            ? const Icon(Icons.person, color: Colors.white)
+                            : null,
+                      ),
+                      if (isOnline)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 11,
+                            height: 11,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4CAF50),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF1A1A2E)
+                                    : Colors.white,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -111,39 +149,47 @@ class _ChatScreenState extends State<ChatScreen> {
                       Text(
                         name,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15.5,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: isOnline
-                                  ? Colors.greenAccent.shade400
-                                  : Colors.grey,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isOnline ? 'Online' : 'Offline',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isOnline
-                                  ? Colors.greenAccent.shade400
-                                  : Colors.grey,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 1),
+                      Text(
+                        isOnline ? 'Online' : 'Offline',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isOnline
+                              ? const Color(0xFF4CAF50)
+                              : Colors.grey.shade500,
+                        ),
                       ),
                     ],
                   ),
                 ],
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.videocam_outlined),
+                color: ChatTheme.primary,
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.call_outlined),
+                color: ChatTheme.primary,
+                onPressed: () {},
+              ),
+              const SizedBox(width: 4),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(
+                height: 1,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.07)
+                    : Colors.grey.shade200,
               ),
             ),
           );
@@ -154,6 +200,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final chatRef = FirebaseFirestore.instance
         .collection('chats')
         .doc(widget.chatId)
@@ -161,9 +209,7 @@ class _ChatScreenState extends State<ChatScreen> {
         .orderBy('timestamp');
 
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF0F1115)
-          : Colors.grey.shade50,
+      backgroundColor: ChatTheme.getBackground(context),
       appBar: _buildAppBar(),
       body: Column(
         children: [
@@ -171,45 +217,51 @@ class _ChatScreenState extends State<ChatScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: chatRef.snapshots(),
               builder: (context, snapshot) {
-                final localRaw =
-                    controller.messageBox.get(widget.chatId, defaultValue: [])
-                        as List;
+                final localRaw = controller.messageBox
+                    .get(widget.chatId, defaultValue: []) as List;
                 final localMessages = localRaw
                     .map((e) => Map<String, dynamic>.from(e as Map))
                     .toList();
                 final firestoreDocs = snapshot.data?.docs ?? [];
 
-                final messages = controller.mergeMessages(
-                  localMessages,
-                  firestoreDocs,
-                );
+                final messages =
+                    controller.mergeMessages(localMessages, firestoreDocs);
 
                 if (messages.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 80,
-                          color: Colors.grey.shade400,
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: ChatTheme.primary.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 44,
+                            color: ChatTheme.primary,
+                          ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 20),
                         Text(
                           'No messages yet',
                           style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).textTheme.bodyMedium?.color,
                             fontSize: 18,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.black54,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Start the conversation!',
+                          'Say hello! 👋',
                           style: TextStyle(
-                            color: Theme.of(context).textTheme.bodySmall?.color,
+                            fontSize: 14,
+                            color: isDark
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade400,
                           ),
                         ),
                       ],
@@ -219,6 +271,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 return ListView.builder(
                   controller: controller.scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
@@ -229,98 +282,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       receiverPhotoUrl:
                           controller.receiverData?['photoUrl'] as String?,
                       onLongPress: () {
-                        // reuse your original action sheet logic here
-                        showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) {
-                            return Container(
-                              margin: const EdgeInsets.all(16),
-                              child: SafeArea(
-                                child: Material(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ListTile(
-                                          leading: Icon(
-                                            Icons.copy,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                          ),
-                                          title: const Text('Copy'),
-                                          onTap: () {
-                                            Clipboard.setData(
-                                              ClipboardData(
-                                                text: msg['text'] ?? '',
-                                              ),
-                                            );
-                                            Navigator.pop(context);
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Copied to clipboard',
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        if (msg['senderId'] ==
-                                            FirebaseAuth
-                                                .instance
-                                                .currentUser
-                                                ?.uid) ...[
-                                          if (msg['status'] == 'failed')
-                                            ListTile(
-                                              leading: Icon(
-                                                Icons.refresh,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.secondary,
-                                              ),
-                                              title: const Text('Retry'),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                controller.retryFailedMessage(
-                                                  msg,
-                                                );
-                                              },
-                                            ),
-                                          ListTile(
-                                            leading: Icon(
-                                              Icons.delete,
-                                              color: Colors.redAccent,
-                                            ),
-                                            title: const Text('Delete'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              controller.deleteMessage(msg);
-                                            },
-                                          ),
-                                        ],
-                                        ListTile(
-                                          leading: const Icon(
-                                            Icons.cancel,
-                                            color: Colors.grey,
-                                          ),
-                                          title: const Text('Cancel'),
-                                          onTap: () => Navigator.pop(context),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
+                        _showMessageOptions(context, msg);
                       },
                     );
                   },
@@ -329,28 +291,171 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Divider line
-          const Divider(height: 1),
-
-          // Input + Emoji picker
-          SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ChatInputBar(
-                  controller: controller,
-                  showEmojiPicker: _showEmojiPicker,
-                  onToggleEmoji: () =>
-                      setState(() => _showEmojiPicker = !_showEmojiPicker),
-                  onSendPressed: controller.onSendPressed,
+          // Input area
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, -2),
                 ),
-                if (_showEmojiPicker)
-                  ChatEmojiPicker(textController: controller.messageController),
               ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ChatInputBar(
+                    controller: controller,
+                    showEmojiPicker: _showEmojiPicker,
+                    onToggleEmoji: () =>
+                        setState(() => _showEmojiPicker = !_showEmojiPicker),
+                    onSendPressed: controller.onSendPressed,
+                  ),
+                  if (_showEmojiPicker)
+                    ChatEmojiPicker(
+                        textController: controller.messageController),
+                ],
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showMessageOptions(BuildContext context, Map<String, dynamic> msg) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return SafeArea(
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white24
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                _SheetOption(
+                  icon: Icons.copy_rounded,
+                  label: 'Copy',
+                  color: ChatTheme.primary,
+                  isDark: isDark,
+                  onTap: () {
+                    Clipboard.setData(
+                        ClipboardData(text: msg['text'] ?? ''));
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Copied to clipboard'),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: ChatTheme.primaryDark,
+                      ),
+                    );
+                  },
+                ),
+                if (msg['senderId'] ==
+                    FirebaseAuth.instance.currentUser?.uid) ...[
+                  if (msg['status'] == 'failed')
+                    _SheetOption(
+                      icon: Icons.refresh_rounded,
+                      label: 'Retry',
+                      color: Colors.orange.shade400,
+                      isDark: isDark,
+                      onTap: () {
+                        Navigator.pop(context);
+                        controller.retryFailedMessage(msg);
+                      },
+                    ),
+                  _SheetOption(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete',
+                    color: Colors.red.shade400,
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.pop(context);
+                      controller.deleteMessage(msg);
+                    },
+                  ),
+                ],
+                _SheetOption(
+                  icon: Icons.close_rounded,
+                  label: 'Cancel',
+                  color: Colors.grey.shade500,
+                  isDark: isDark,
+                  onTap: () => Navigator.pop(context),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// ─── Reusable bottom-sheet option row ─────────────────────────────────────
+class _SheetOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _SheetOption({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 15,
+          color: isDark ? Colors.white.withValues(alpha: 0.87) : Colors.black87,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 }

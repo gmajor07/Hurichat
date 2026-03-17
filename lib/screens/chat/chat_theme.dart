@@ -1,31 +1,44 @@
 import 'package:flutter/material.dart';
 
 class ChatTheme {
-  static const Color primary = Color(0xFF497A72); // match login/register button
-  static const Color accent = Color(0xFF60A89B); // lighter variant
+  // ── Brand ──────────────────────────────────────────────────────────
+  static const Color primary     = Color(0xFF4CAFaa);
+  static const Color primaryDark = Color(0xFF3D8A84);
+  static const Color accent      = Color(0xFF60A89B);
+
+  // ── Sender bubble gradients ────────────────────────────────────────
+  static const List<Color> senderGradientLight = [
+    Color(0xFF4CAFaa),
+    Color(0xFF3D8A84),
+  ];
+  static const List<Color> senderGradientDark = [
+    Color(0xFF5ABEB7),
+    Color(0xFF2E7D68),
+  ];
+
+  // ── Receiver bubbles ───────────────────────────────────────────────
+  static const Color receiverBubbleLight = Colors.white;
+  static const Color receiverBubbleDark  = Color(0xFF2A2A2A);
+
+  // ── Helpers ────────────────────────────────────────────────────────
+  static bool _isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
 
   static Color getBackground(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark
-      ? const Color(0xFF121212)
-      : Colors.grey.shade50;
+      _isDark(context) ? const Color(0xFF0F1115) : const Color(0xFFF0F8F7);
 
-  static Color getBubbleColor(BuildContext context, bool isMe) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  static List<Color> getSenderGradient(BuildContext context) =>
+      _isDark(context) ? senderGradientDark : senderGradientLight;
 
-    if (isMe) {
-      // Sender (current user) bubble color
-      return isDark ? const Color(0xFF60A89B) : primary;
-    } else {
-      // Receiver bubble color
-      return isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade200;
-    }
-  }
+  static Color getReceiverBubble(BuildContext context) =>
+      _isDark(context) ? receiverBubbleDark : receiverBubbleLight;
 
-  static Color getTextColor(bool isMe) {
-    return isMe ? Colors.white : Colors.black87;
-  }
+  static Color getBubbleColor(BuildContext context, bool isMe) =>
+      isMe ? primary : getReceiverBubble(context);
 
-  static Color getTimeColor(bool isMe) {
-    return isMe ? Colors.white70 : Colors.black45;
-  }
+  static Color getTextColor(bool isMe) =>
+      isMe ? Colors.white : Colors.black87;
+
+  static Color getTimeColor(bool isMe) =>
+      isMe ? Colors.white70 : Colors.black45;
 }

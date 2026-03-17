@@ -8,19 +8,38 @@ class DiscoverScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = AppTheme.accentBlue;
     final Color primary = AppTheme.primaryColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SafeArea(
-      child: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF12151B)
+          : const Color(0xFFF2F5F8),
+      appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: Colors.transparent,
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Discover',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'Discover new things and stay updated',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Account & Settings Section
-            _buildSectionTitle('Discover'),
-            const SizedBox(height: 12),
-
             _buildSettingsTile(
               context,
               icon: Icons.fastfood_outlined,
@@ -75,12 +94,6 @@ class DiscoverScreen extends StatelessWidget {
     );
   }
 
-  // --- Helpers ---
-  Widget _buildSectionTitle(String title) => Text(
-    title,
-    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-  );
-
   Widget _buildSettingsTile(
     BuildContext context, {
     required IconData icon,
@@ -109,42 +122,6 @@ class DiscoverScreen extends StatelessWidget {
           Navigator.pushNamed(context, routeName);
         }
       },
-    );
-  }
-}
-
-// --- Reusable action button ---
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  const _ActionButton({required this.icon, required this.label, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final Color accent = AppTheme.primaryColor;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: accent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -660,8 +660,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Huruchati Shopping',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              'Shopping',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
             ),
             SizedBox(height: 2),
             Text(

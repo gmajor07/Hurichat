@@ -3,9 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:huruchat/screens/transport_screen.dart';
 import '../food/screen/food_screen.dart';
-import '../shopping/screens/shopping_screen.dart';
 import '../theme/app_theme.dart';
-// ✅ IMPORTANT: Import the SellerProductsScreen for direct navigation
 import '../shopping/screens/seller_dashboard_screen.dart';
 
 class HuruScreen extends StatelessWidget {
@@ -138,9 +136,33 @@ class HuruScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color accent = AppTheme.accentBlue;
     final Color primary = AppTheme.primaryColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SafeArea(
-      child: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF12151B)
+          : const Color(0xFFF2F5F8),
+      appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: Colors.transparent,
+        titleSpacing: 16,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Huruchati Huru',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'Manage your account and settings',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
