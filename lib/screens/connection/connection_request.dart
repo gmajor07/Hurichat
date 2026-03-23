@@ -27,17 +27,7 @@ class ConnectionRequestsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8.0, top: 8.0),
-          child: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              Icons.arrow_back_ios_new,
-              color: isDark ? Colors.white70 : Colors.black87,
-              size: 20,
-            ),
-          ),
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           'Connection Requests',
           style: TextStyle(

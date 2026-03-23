@@ -138,6 +138,7 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Restaurant Menu'),
+        automaticallyImplyLeading: false,
         actions: [
           Stack(
             children: [

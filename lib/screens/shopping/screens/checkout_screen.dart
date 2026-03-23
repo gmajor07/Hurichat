@@ -33,7 +33,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final totalsByCurrency = _totalsByCurrency(checkoutItems);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Checkout')),
+      appBar: AppBar(
+        title: const Text('Checkout'),
+        automaticallyImplyLeading: false,
+      ),
       body: checkoutItems.isEmpty
           ? const Center(child: Text('No selected items found in cart.'))
           : SingleChildScrollView(

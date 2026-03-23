@@ -173,6 +173,7 @@ class _FoodScreenState extends State<FoodScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Food & Restaurant'),
+        automaticallyImplyLeading: false,
         actions: [
           Stack(
             children: [

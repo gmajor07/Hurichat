@@ -10,6 +10,7 @@ AppBar buildHomeAppBar({
   return AppBar(
     backgroundColor: Colors.transparent,
     elevation: 0,
+    automaticallyImplyLeading: false,
     titleSpacing: 0,
     title: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../theme/app_theme.dart';
 
 class DiscoverScreen extends StatelessWidget {
@@ -24,7 +23,7 @@ class DiscoverScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Discover',
+              'Huruchati Discover',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             SizedBox(height: 2),
@@ -40,52 +39,54 @@ class DiscoverScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSettingsTile(
+            _buildModernTile(
               context,
-              icon: Icons.fastfood_outlined,
+              icon: Icons.auto_awesome_mosaic_rounded,
               title: 'Status',
-              color: primary,
+              color: Colors.orange,
               routeName: '/my_cart_food',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernTile(
               context,
-              icon: Icons.shopping_cart_outlined,
+              icon: Icons.video_library_rounded,
               title: 'Video and channel',
-              color: primary,
+              color: Colors.redAccent,
               routeName: '/my_shopping_cart',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernTile(
               context,
-              icon: Icons.support_agent,
+              icon: Icons.search_rounded,
               title: 'Search',
               color: primary,
               routeName: '/customer_support',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernTile(
               context,
-              icon: Icons.card_giftcard,
+              icon: Icons.qr_code_scanner_rounded,
               title: 'Scan',
-              color: primary,
+              color: Colors.blue,
               routeName: '/coupons',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernTile(
               context,
-              icon: Icons.settings,
+              icon: Icons.grid_view_rounded,
               title: 'Programs',
-              color: primary,
+              color: Colors.teal,
               routeName: '/account_settings',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            const SizedBox(height: 12),
+            _buildModernTile(
               context,
-              icon: Icons.logout,
+              icon: Icons.logout_rounded,
               title: 'Logout',
-              color: Colors.redAccent,
+              color: Colors.red,
               isLogout: true,
+              isDark: isDark,
             ),
             const SizedBox(height: 24),
           ],
@@ -94,34 +95,64 @@ class DiscoverScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsTile(
+  Widget _buildModernTile(
     BuildContext context, {
     required IconData icon,
     required String title,
     required Color color,
+    required bool isDark,
     String? routeName,
     bool isLogout = false,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(title),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-      onTap: () async {
-        if (isLogout) {
-          await FirebaseAuth.instance.signOut();
-          Navigator.pushNamedAndRemoveUntil(
-            // ignore: use_build_context_synchronously
-            context,
-            '/login',
-            (route) => false,
-          );
-          return;
-        }
-
-        if (routeName != null) {
-          Navigator.pushNamed(context, routeName);
-        }
-      },
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E222D) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: isDark ? Colors.white38 : Colors.black26,
+        ),
+        onTap: () async {
+          if (isLogout) {
+            await FirebaseAuth.instance.signOut();
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+            }
+            return;
+          }
+          if (routeName != null) {
+            Navigator.pushNamed(context, routeName);
+          }
+        },
+      ),
     );
   }
 }

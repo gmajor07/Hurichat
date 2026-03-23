@@ -655,6 +655,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
+        automaticallyImplyLeading: false,
         titleSpacing: 16,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,

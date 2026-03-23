@@ -574,7 +574,10 @@ class _MarketplaceUploadPageState extends State<MarketplaceUploadPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Upload Product")),
+      appBar: AppBar(
+        title: const Text("Upload Product"),
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Form(

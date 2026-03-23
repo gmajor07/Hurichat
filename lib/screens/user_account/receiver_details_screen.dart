@@ -108,6 +108,7 @@ class _ReceiverDetailsScreenState extends State<ReceiverDetailsScreen> {
         title: const Text('Friend Info'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

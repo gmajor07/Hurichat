@@ -120,6 +120,7 @@ class _AccountScreenState extends State<AccountScreen> {
         title: const Text('Profile'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       backgroundColor: backgroundColor,
       body: _loading

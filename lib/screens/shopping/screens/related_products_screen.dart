@@ -153,6 +153,7 @@ class _RelatedProductsScreenState extends State<RelatedProductsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: Text(
           _subCategoryLabel.isEmpty
               ? 'Related Products'

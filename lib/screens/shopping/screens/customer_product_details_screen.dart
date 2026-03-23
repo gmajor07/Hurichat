@@ -433,6 +433,7 @@ class _CustomerProductDetailsScreenState
         elevation: 0,
         centerTitle: true,
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
         title: const Text('Detail Product'),
         actions: [
           Consumer<CartProvider>(

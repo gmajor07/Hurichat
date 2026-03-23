@@ -10,131 +10,126 @@ class HuruScreen extends StatelessWidget {
   const HuruScreen({super.key});
 
   // --- Helpers ---
-  Widget _buildSectionTitle(String title) => Text(
-    title,
-    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+  Widget _buildSectionTitle(String title, bool isDark) => Padding(
+    padding: const EdgeInsets.only(left: 4, bottom: 12),
+    child: Text(
+      title,
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: isDark ? Colors.white : Colors.black87,
+      ),
+    ),
   );
 
-  Widget _buildSettingsTile(
+  Widget _buildModernSettingsTile(
     BuildContext context, {
     required IconData icon,
     required String title,
     required Color color,
+    required bool isDark,
     String? routeName,
     bool isLogout = false,
-    bool isSellerDashboard = false, // ✅ NEW FLAG for Seller Dashboard
-    bool isSellerSettings = false, // ✅ NEW FLAG for Seller Settings
+    bool isSellerDashboard = false,
+    bool isSellerSettings = false,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(title),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-      onTap: () async {
-        final user = FirebaseAuth.instance.currentUser;
-
-        if (isLogout) {
-          await FirebaseAuth.instance.signOut();
-          Navigator.pushReplacementNamed(context, '/login');
-          return;
-        }
-
-        // 🔑 FIX LOGIC: Direct navigation to Seller Dashboard with UID
-        if (isSellerDashboard) {
-          if (user == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Login required to view dashboard."),
-              ),
-            );
-            return;
-          }
-
-          // Check if user is an active seller
-          try {
-            final userDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .get();
-            final userData = userDoc.data();
-            if (userData?['role'] != 'seller' ||
-                userData?['sellerStatus'] != 'active') {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    "You must be an active seller to access the dashboard.",
-                  ),
-                ),
-              );
-              return;
-            }
-          } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Error checking seller status: $e")),
-            );
-            return;
-          }
-
-          // Use direct navigation and pass the authenticated user's ID
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SellerProductsScreen(sellerId: user.uid),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E222D) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-          );
-          return;
-        }
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: isDark ? Colors.white38 : Colors.black26,
+        ),
+        onTap: () async {
+          final user = FirebaseAuth.instance.currentUser;
 
-        // 🔑 CHECK for Seller Settings
-        if (isSellerSettings) {
-          if (user == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Login required to access seller settings."),
-              ),
-            );
+          if (isLogout) {
+            await FirebaseAuth.instance.signOut();
+            if (context.mounted) {
+              Navigator.pushReplacementNamed(context, '/login');
+            }
             return;
           }
 
-          // Check if user is an active seller
-          try {
-            final userDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .get();
-            final userData = userDoc.data();
-            if (userData?['role'] != 'seller' ||
-                userData?['sellerStatus'] != 'active') {
+          if (isSellerDashboard || isSellerSettings) {
+            if (user == null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    "You must be an active seller to access seller settings.",
-                  ),
-                ),
+                const SnackBar(content: Text("Login required.")),
               );
               return;
             }
-          } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Error checking seller status: $e")),
-            );
+
+            try {
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .get();
+              final userData = userDoc.data();
+              if (userData?['role'] != 'seller' ||
+                  userData?['sellerStatus'] != 'active') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Access restricted to active sellers.")),
+                );
+                return;
+              }
+
+              if (isSellerDashboard) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SellerProductsScreen(sellerId: user.uid),
+                  ),
+                );
+              } else {
+                Navigator.pushNamed(context, '/seller_screen');
+              }
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Error: $e")),
+              );
+            }
             return;
           }
 
-          // Proceed to seller screen
-          Navigator.pushNamed(context, '/seller_screen');
-          return;
-        }
-
-        if (routeName != null) {
-          Navigator.pushNamed(context, routeName);
-        }
-      },
+          if (routeName != null) {
+            Navigator.pushNamed(context, routeName);
+          }
+        },
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = AppTheme.accentBlue;
     final Color primary = AppTheme.primaryColor;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -152,7 +147,7 @@ class HuruScreen extends StatelessWidget {
           children: [
             Text(
               'Huruchati Huru',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             SizedBox(height: 2),
             Text(
@@ -167,23 +162,8 @@ class HuruScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Check Balance',
-                  style: TextStyle(color: accent, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-     
-
-            // Services
-            _buildSectionTitle('Services'),
-            const SizedBox(height: 12),
+            // Services Section
+            _buildSectionTitle('Services', isDark),
             GridView.count(
               crossAxisCount: 4,
               shrinkWrap: true,
@@ -192,106 +172,87 @@ class HuruScreen extends StatelessWidget {
               crossAxisSpacing: 12,
               children: [
                 _ActionButton(
-                  icon: Icons.car_rental_outlined,
+                  icon: Icons.car_rental_rounded,
                   label: 'Transport',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TransportScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportScreen())),
                 ),
                 _ActionButton(
-                  icon: Icons.shopping_bag,
+                  icon: Icons.fastfood_rounded,
                   label: 'Food',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FoodScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FoodScreen())),
                 ),
-                const _ActionButton(
-                  icon: Icons.confirmation_number,
-                  label: 'Ticket',
-                ),
-                const _ActionButton(icon: Icons.receipt, label: 'Bill Payment'),
+                const _ActionButton(icon: Icons.confirmation_number_rounded, label: 'Ticket'),
+                const _ActionButton(icon: Icons.receipt_long_rounded, label: 'Bills'),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
             // Account & Settings Section
-            _buildSectionTitle('Account & Settings'),
-            const SizedBox(height: 12),
-
-            _buildSettingsTile(
+            _buildSectionTitle('Account & Settings', isDark),
+            _buildModernSettingsTile(
               context,
-              icon: Icons.fastfood_outlined,
-              title: 'My Cart Food',
-              color: primary,
+              icon: Icons.shopping_basket_rounded,
+              title: 'My Food Cart',
+              color: Colors.orange,
               routeName: '/my_cart_food',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernSettingsTile(
               context,
-              icon: Icons.shopping_cart_outlined,
-              title: 'My Shopping Cart',
-              color: primary,
+              icon: Icons.shopping_bag_rounded,
+              title: 'Shopping Cart',
+              color: Colors.blue,
               routeName: '/my_shopping_cart',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernSettingsTile(
               context,
-              icon: Icons.support_agent,
+              icon: Icons.headset_mic_rounded,
               title: 'Customer Support',
-              color: primary,
+              color: Colors.teal,
               routeName: '/customer_support',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernSettingsTile(
               context,
-              icon: Icons.card_giftcard,
-              title: 'Coupon & Offer',
-              color: primary,
+              icon: Icons.local_activity_rounded,
+              title: 'Coupons & Offers',
+              color: Colors.pink,
               routeName: '/coupons',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernSettingsTile(
               context,
-              icon: Icons.person,
-              title: 'Profile',
+              icon: Icons.person_rounded,
+              title: 'Profile Settings',
               color: primary,
               routeName: '/account_profile',
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            _buildModernSettingsTile(
               context,
-              icon: Icons.shop,
+              icon: Icons.storefront_rounded,
               title: 'Seller Settings',
-              color: primary,
+              color: Colors.indigo,
               isSellerSettings: true,
+              isDark: isDark,
             ),
-            const Divider(),
-            // ✅ FIXED NAVIGATION: Using flag and direct push
-            _buildSettingsTile(
+            _buildModernSettingsTile(
               context,
-              icon: Icons.store_mall_directory, // Updated icon
+              icon: Icons.dashboard_customize_rounded,
               title: 'Seller Dashboard',
-              color: primary,
-              isSellerDashboard: true, // 🔑 Trigger the fix logic
-               routeName: '/seller_dashboard_screen', // ❌ DEPRECATED ROUTE
+              color: const Color(0xFF4CAFAB),
+              isSellerDashboard: true,
+              isDark: isDark,
             ),
-            const Divider(),
-            _buildSettingsTile(
+            const SizedBox(height: 8),
+            _buildModernSettingsTile(
               context,
-              icon: Icons.logout,
+              icon: Icons.logout_rounded,
               title: 'Logout',
-              color: Colors.redAccent,
+              color: Colors.red,
               isLogout: true,
+              isDark: isDark,
             ),
             const SizedBox(height: 24),
           ],
@@ -301,7 +262,6 @@ class HuruScreen extends StatelessWidget {
   }
 }
 
-// --- Reusable action button ---
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -311,24 +271,38 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = AppTheme.primaryColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = AppTheme.primaryColor;
+    
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: accent,
-          borderRadius: BorderRadius.circular(12),
+          color: isDark ? const Color(0xFF1E222D) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            if (!isDark)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 28),
+            Icon(icon, color: primary, size: 28),
             const SizedBox(height: 6),
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.black87,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),

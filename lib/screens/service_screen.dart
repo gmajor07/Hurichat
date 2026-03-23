@@ -24,6 +24,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent,
+        automaticallyImplyLeading: false,
         titleSpacing: 16,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,15 +82,23 @@ class _ServiceScreenState extends State<ServiceScreen> {
       (
         label: 'Scan & Pay',
         icon: Icons.qr_code_2_rounded,
-        service: 'Scan & Pay',
+        color: Color(0xFF4DB6B3),
       ),
       (
         label: 'Collect',
         icon: Icons.account_balance_wallet_rounded,
-        service: 'Collect',
+        color: Color(0xFF2CB67D),
       ),
-      (label: 'Transfer', icon: Icons.swap_horiz_rounded, service: 'Transfer'),
-      (label: 'Deposit', icon: Icons.download_rounded, service: 'Deposit'),
+      (
+        label: 'Transfer',
+        icon: Icons.swap_horiz_rounded,
+        color: Color(0xFF3AA6FF),
+      ),
+      (
+        label: 'Deposit',
+        icon: Icons.download_rounded,
+        color: Color(0xFFF4A940),
+      ),
     ];
 
     return Column(
@@ -108,9 +117,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final crossAxisCount = width < 360 ? 2 : 4;
-            final tileWidth =
-                (width - ((crossAxisCount - 1) * 12)) / crossAxisCount;
-            final tileHeight = crossAxisCount == 2 ? 132.0 : 120.0;
+            final tileWidth = (width - ((crossAxisCount - 1) * 12)) / crossAxisCount;
 
             return Wrap(
               spacing: 12,
@@ -122,8 +129,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
                       child: _buildQuickAction(
                         label: action.label,
                         icon: action.icon,
-                        height: tileHeight,
-                        onTap: () => _showComingSoon(action.service),
+                        color: action.color,
+                        onTap: () => _showComingSoon(action.label),
                       ),
                     ),
                   )
@@ -138,42 +145,49 @@ class _ServiceScreenState extends State<ServiceScreen> {
   Widget _buildQuickAction({
     required String label,
     required IconData icon,
-    required double height,
+    required Color color,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
-        height: height,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: _quickActionColor,
-          borderRadius: BorderRadius.circular(22),
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: _quickActionColor.withValues(alpha: 0.28),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: color.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 34),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isDark ? 0.2 : 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 26),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

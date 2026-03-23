@@ -56,6 +56,7 @@ class _ChatScreenState extends State<ChatScreen> {
               backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
               elevation: 0,
               surfaceTintColor: Colors.transparent,
+              automaticallyImplyLeading: false,
               title: Text(
                 'Loading...',
                 style: TextStyle(
@@ -87,23 +88,15 @@ class _ChatScreenState extends State<ChatScreen> {
             elevation: 0,
             scrolledUnderElevation: 0,
             surfaceTintColor: Colors.transparent,
+            automaticallyImplyLeading: false,
             systemOverlayStyle: isDark
                 ? SystemUiOverlayStyle.light
                 : SystemUiOverlayStyle.dark,
-            leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
             title: GestureDetector(
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      ReceiverDetailsScreen(userId: receiverId),
+                  builder: (_) => ReceiverDetailsScreen(userId: receiverId),
                 ),
               ),
               child: Row(
@@ -217,15 +210,18 @@ class _ChatScreenState extends State<ChatScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: chatRef.snapshots(),
               builder: (context, snapshot) {
-                final localRaw = controller.messageBox
-                    .get(widget.chatId, defaultValue: []) as List;
+                final localRaw =
+                    controller.messageBox.get(widget.chatId, defaultValue: [])
+                        as List;
                 final localMessages = localRaw
                     .map((e) => Map<String, dynamic>.from(e as Map))
                     .toList();
                 final firestoreDocs = snapshot.data?.docs ?? [];
 
-                final messages =
-                    controller.mergeMessages(localMessages, firestoreDocs);
+                final messages = controller.mergeMessages(
+                  localMessages,
+                  firestoreDocs,
+                );
 
                 if (messages.isEmpty) {
                   return Center(
@@ -297,8 +293,7 @@ class _ChatScreenState extends State<ChatScreen> {
               color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color:
-                      Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, -2),
                 ),
@@ -318,7 +313,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   if (_showEmojiPicker)
                     ChatEmojiPicker(
-                        textController: controller.messageController),
+                      textController: controller.messageController,
+                    ),
                 ],
               ),
             ),
@@ -338,8 +334,9 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -350,9 +347,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   height: 4,
                   margin: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white24
-                        : Colors.grey.shade300,
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -362,15 +357,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   color: ChatTheme.primary,
                   isDark: isDark,
                   onTap: () {
-                    Clipboard.setData(
-                        ClipboardData(text: msg['text'] ?? ''));
+                    Clipboard.setData(ClipboardData(text: msg['text'] ?? ''));
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text('Copied to clipboard'),
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         backgroundColor: ChatTheme.primaryDark,
                       ),
                     );
@@ -436,8 +431,7 @@ class _SheetOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
       leading: Container(
         width: 40,
         height: 40,

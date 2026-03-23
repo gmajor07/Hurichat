@@ -75,7 +75,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final bool hasImage = product!.imageUrl.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: Text(product!.name), elevation: 0),
+      appBar: AppBar(
+        title: Text(product!.name),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [

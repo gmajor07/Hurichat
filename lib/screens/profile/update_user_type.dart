@@ -226,7 +226,10 @@ class _BecomeSellerPageState extends State<BecomeSellerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Become a Seller")),
+      appBar: AppBar(
+        title: const Text("Become a Seller"),
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: _currentStep == 0

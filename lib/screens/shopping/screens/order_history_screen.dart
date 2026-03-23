@@ -80,7 +80,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Order History')),
+      appBar: AppBar(
+        title: const Text('Order History'),
+        automaticallyImplyLeading: false,
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _orders.isEmpty

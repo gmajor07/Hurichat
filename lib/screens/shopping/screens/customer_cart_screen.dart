@@ -14,6 +14,7 @@ class CustomerCartScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Shopping Cart'),
+        automaticallyImplyLeading: false,
         actions: [
           if (cartProvider.items.isNotEmpty)
             IconButton(

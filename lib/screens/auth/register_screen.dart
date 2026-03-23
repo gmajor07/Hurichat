@@ -10,14 +10,15 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
+class _RegisterScreenState extends State<RegisterScreen>
+    with SingleTickerProviderStateMixin {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -40,10 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
     // Define the base animation scale
     _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
   }
 
@@ -55,7 +53,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     _confirmPasswordController.dispose();
     super.dispose();
   }
-
 
   Future<void> _registerUser() async {
     final email = _emailController.text.trim();
@@ -89,7 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     } on FirebaseAuthException catch (e) {
       _showSnackBar(e.message ?? 'Registration failed');
     } finally {
-      if(mounted) {
+      if (mounted) {
         setState(() => _isLoading = false);
       }
     }
@@ -100,7 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     try {
       final googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
-        if(mounted) setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
       final googleAuth = await googleUser.authentication;
@@ -116,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     } catch (e) {
       _showSnackBar('Google Sign-In failed');
     } finally {
-      if(mounted) {
+      if (mounted) {
         setState(() => _isLoading = false);
       }
     }
@@ -159,18 +156,22 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           builder: (context, child) {
             // Define scale based on animation for staggered effect
             final dot1Scale = _animation.value;
-            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0).animate(
-              CurvedAnimation(
-                parent: _animationController,
-                curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
-              ),
-            ).value;
-            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0).animate(
-              CurvedAnimation(
-                parent: _animationController,
-                curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
-              ),
-            ).value;
+            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
+            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0)
+                .animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
+                  ),
+                )
+                .value;
 
             const dot = Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.0),
@@ -190,7 +191,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -203,17 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8.0, top: 8.0),
-          child: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              Icons.arrow_back_ios_new,
-              color: isDark ? Colors.white70 : Colors.black87,
-              size: 20,
-            ),
-          ),
-        ),
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -246,22 +236,22 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration:
-                _inputDecoration(
-                  'Enter your password',
-                  Icons.lock_outline,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: Colors.grey[600],
-                    ),
-                    onPressed: () => setState(
+                    _inputDecoration(
+                      'Enter your password',
+                      Icons.lock_outline,
+                    ).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.grey[600],
+                        ),
+                        onPressed: () => setState(
                           () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
               ),
               const SizedBox(height: 16),
 
@@ -270,23 +260,23 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
                 decoration:
-                _inputDecoration(
-                  'Confirm your password',
-                  Icons.lock_outline,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: Colors.grey[600],
-                    ),
-                    onPressed: () => setState(
+                    _inputDecoration(
+                      'Confirm your password',
+                      Icons.lock_outline,
+                    ).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.grey[600],
+                        ),
+                        onPressed: () => setState(
                           () => _obscureConfirmPassword =
-                      !_obscureConfirmPassword,
+                              !_obscureConfirmPassword,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
               ),
               const SizedBox(height: 28),
 
@@ -305,13 +295,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   child: _isLoading
                       ? _buildLoadingIndicator() // Animated Dots Loader
                       : const Text(
-                    'Create Account',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                          'Create Account',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
 

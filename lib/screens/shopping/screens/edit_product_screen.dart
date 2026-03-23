@@ -134,7 +134,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
     final Color primaryColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Product'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('Edit Product'),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
       body: _loading
           ? Center(child: CircularProgressIndicator(color: primaryColor))
           : SingleChildScrollView(
