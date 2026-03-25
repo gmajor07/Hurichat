@@ -15,7 +15,6 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-// 1. ADD TickerProviderStateMixin
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
@@ -25,21 +24,18 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscure = true;
   bool _loading = false;
 
-  // 2. Animation controller and animation for the pulsating dots
   late AnimationController _animationController;
   late Animation<double> _animation;
-  final themeColor = const Color(0xFF497A72); // Defined here for use in methods
+  final themeColor = const Color(0xFF497A72);
 
   @override
   void initState() {
     super.initState();
-    // Initialize the animation controller
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat();
 
-    // Define the animation: goes from 0.5 (smaller) to 1.0 (larger) and back
     _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
@@ -53,8 +49,6 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // Email/Password login
-  /// 🔐 Login with Email & Password
   Future<void> _loginWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -104,7 +98,6 @@ class _LoginScreenState extends State<LoginScreen>
         default:
           message = 'Login failed. Please try again later.';
       }
-
       _showError(message);
     } catch (_) {
       _showError('An unexpected error occurred. Please try again.');
@@ -116,36 +109,82 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("❌ $message")));
+    if (!mounted) return;
+    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        content: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2C1C1C) : const Color(0xFFFFEBEB),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.red.withValues(alpha: 0.5),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Error',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      message,
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.black87,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  // Google login
   Future<void> _loginWithGoogle() async {
     try {
       setState(() => _loading = true);
-
-      if (kDebugMode) print('🔄 Starting Google Sign-In...');
-
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        scopes: ['email', 'profile'],
-      );
-
+      final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
-        if (kDebugMode) print('❌ Google Sign-In was cancelled by user');
         setState(() => _loading = false);
         return;
       }
 
       final googleAuth = await googleUser.authentication;
-
-      if (googleAuth.idToken == null || googleAuth.accessToken == null) {
-        throw Exception('Failed to get authentication tokens');
-      }
-
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
@@ -154,48 +193,26 @@ class _LoginScreenState extends State<LoginScreen>
       final result = await _auth.signInWithCredential(credential);
       final user = result.user;
 
-      if (user == null) {
-        throw Exception('Failed to get user from Firebase');
-      }
+      if (user == null) throw Exception('Failed to get user');
 
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
       if (!doc.exists || !(doc.data()?['name']?.isNotEmpty ?? false)) {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()),
-          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ProfileCompletionScreen()));
         }
       } else {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
         }
       }
     } catch (e) {
-      if (kDebugMode) print('❌ Google Sign-In Error: $e');
-
-      // Show error to user
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("❌ Google Sign-In Error: $e"),
-          duration: const Duration(seconds: 5),
-        ),
-      );
+      _showError("Google Sign-In Error: $e");
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  // 3. NEW: Animated Loading Indicator Widget
   Widget _buildLoadingIndicator() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -203,37 +220,11 @@ class _LoginScreenState extends State<LoginScreen>
         AnimatedBuilder(
           animation: _animation,
           builder: (context, child) {
-            // Define scale based on animation for staggered effect
             final dot1Scale = _animation.value;
-            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0)
-                .animate(
-                  CurvedAnimation(
-                    parent: _animationController,
-                    curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
-                  ),
-                )
-                .value;
-            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0)
-                .animate(
-                  CurvedAnimation(
-                    parent: _animationController,
-                    curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
-                  ),
-                )
-                .value;
-
-            const dot = Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.0),
-              child: CircleAvatar(radius: 4, backgroundColor: Colors.white),
-            );
-
-            return Row(
-              children: [
-                Transform.scale(scale: dot1Scale, child: dot),
-                Transform.scale(scale: dot2Scale, child: dot),
-                Transform.scale(scale: dot3Scale, child: dot),
-              ],
-            );
+            final dot2Scale = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: const Interval(0.3, 1.0, curve: Curves.easeInOut))).value;
+            final dot3Scale = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: const Interval(0.6, 1.0, curve: Curves.easeInOut))).value;
+            const dot = Padding(padding: EdgeInsets.symmetric(horizontal: 4.0), child: CircleAvatar(radius: 4, backgroundColor: Colors.white));
+            return Row(children: [Transform.scale(scale: dot1Scale, child: dot), Transform.scale(scale: dot2Scale, child: dot), Transform.scale(scale: dot3Scale, child: dot)]);
           },
         ),
       ],
@@ -243,11 +234,9 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
+    final backgroundColor = isDark ? const Color(0xFF12151B) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
-    final fieldFillColor = isDark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFF4F4F4);
+    final fieldFillColor = isDark ? const Color(0xFF1E222D) : const Color(0xFFF4F4F4);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -264,30 +253,14 @@ class _LoginScreenState extends State<LoginScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 10),
-                Text(
-                  "Hey,",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
+                Text("Hey,", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor)),
                 const SizedBox(height: 6),
-                Text(
-                  "Welcome Back",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
+                Text("Welcome Back", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: textColor)),
                 const SizedBox(height: 40),
-
                 Form(
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Email
                       TextFormField(
                         controller: _emailCtl,
                         keyboardType: TextInputType.emailAddress,
@@ -295,35 +268,15 @@ class _LoginScreenState extends State<LoginScreen>
                         decoration: InputDecoration(
                           hintText: "Enter your email",
                           hintStyle: TextStyle(color: Colors.grey[500]),
-                          prefixIcon: Icon(
-                            Icons.email_outlined,
-                            color: isDark ? Colors.white70 : Colors.grey[700],
-                          ),
+                          prefixIcon: Icon(Icons.email_outlined, color: isDark ? Colors.white70 : Colors.grey[700]),
                           filled: true,
                           fillColor: fieldFillColor,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 18,
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 18),
                         ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Email is required';
-                          }
-                          if (!RegExp(
-                            r'^[^@]+@[^@]+\.[^@]+',
-                          ).hasMatch(v.trim())) {
-                            return 'Enter a valid email';
-                          }
-                          return null;
-                        },
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Email is required' : (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim()) ? 'Enter a valid email' : null),
                       ),
                       const SizedBox(height: 20),
-
-                      // Password
                       TextFormField(
                         controller: _passwordCtl,
                         obscureText: _obscure,
@@ -331,158 +284,49 @@ class _LoginScreenState extends State<LoginScreen>
                         decoration: InputDecoration(
                           hintText: "Enter your password",
                           hintStyle: TextStyle(color: Colors.grey[500]),
-                          prefixIcon: Icon(
-                            Icons.lock_outline,
-                            color: isDark ? Colors.white70 : Colors.grey[700],
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              color: isDark ? Colors.white70 : Colors.grey,
-                            ),
-                            onPressed: () =>
-                                setState(() => _obscure = !_obscure),
-                          ),
+                          prefixIcon: Icon(Icons.lock_outline, color: isDark ? Colors.white70 : Colors.grey[700]),
+                          suffixIcon: IconButton(icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: isDark ? Colors.white70 : Colors.grey), onPressed: () => setState(() => _obscure = !_obscure)),
                           filled: true,
                           fillColor: fieldFillColor,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 18,
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 18),
                         ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Password is required';
-                          }
-                          if (v.length < 6) {
-                            return 'Minimum 6 characters';
-                          }
-                          return null;
-                        },
+                        validator: (v) => (v == null || v.isEmpty) ? 'Password is required' : (v.length < 6 ? 'Minimum 6 characters' : null),
                       ),
-
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            "Forgot Password?",
-                            style: TextStyle(color: themeColor),
-                          ),
-                        ),
-                      ),
+                      Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () {}, child: Text("Forgot Password?", style: TextStyle(color: themeColor)))),
                       const SizedBox(height: 10),
-
-                      // Login Button
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
                           onPressed: _loading ? null : _loginWithEmail,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: themeColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _loading
-                              ? _buildLoadingIndicator() // 4. REPLACED CircularProgressIndicator
-                              : const Text(
-                                  "Login",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                          style: ElevatedButton.styleFrom(backgroundColor: themeColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
+                          child: _loading ? _buildLoadingIndicator() : const Text("Login", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
                         ),
                       ),
                       const SizedBox(height: 25),
-
-                      // Divider
                       Row(
                         children: [
-                          Expanded(
-                            child: Divider(
-                              thickness: 0.8,
-                              color: isDark ? Colors.white24 : Colors.grey,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              "Or Continue with",
-                              style: TextStyle(
-                                color: isDark
-                                    ? Colors.white70
-                                    : Colors.grey[600],
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              thickness: 0.8,
-                              color: isDark ? Colors.white24 : Colors.grey,
-                            ),
-                          ),
+                          Expanded(child: Divider(thickness: 0.8, color: isDark ? Colors.white24 : Colors.grey)),
+                          Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text("Or Continue with", style: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]))),
+                          Expanded(child: Divider(thickness: 0.8, color: isDark ? Colors.white24 : Colors.grey)),
                         ],
                       ),
                       const SizedBox(height: 25),
-
-                      // Social Icons
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _socialButton(
-                            "assets/images/google.png",
-                            _loginWithGoogle,
-                            isDark,
-                          ),
-
+                          _socialButton("assets/images/google.png", _loginWithGoogle, isDark),
                           const SizedBox(width: 18),
-                          _socialButton("assets/images/phone.png", () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PhoneAuthPage(),
-                              ),
-                            );
-                          }, isDark),
+                          _socialButton("assets/images/phone.png", () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PhoneAuthPage())), isDark),
                         ],
                       ),
                       const SizedBox(height: 40),
-
-                      // Sign up prompt
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            "Don’t have an Account? ",
-                            style: TextStyle(color: textColor),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const RegisterScreen(),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              "Sign-Up",
-                              style: TextStyle(
-                                color: themeColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+                          Text("Don’t have an Account? ", style: TextStyle(color: textColor)),
+                          GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())), child: Text("Sign-Up", style: TextStyle(color: themeColor, fontWeight: FontWeight.w600))),
                         ],
                       ),
                     ],
@@ -499,17 +343,17 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _socialButton(String asset, VoidCallback onPressed, bool isDark) {
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(50),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 50,
-        height: 50,
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isDark ? Colors.white24 : Colors.grey.shade300,
-          ),
+          color: isDark ? const Color(0xFF1E222D) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+          boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(14),
         child: Image.asset(asset),
       ),
     );

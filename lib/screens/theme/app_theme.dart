@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // ── Brand ──────────────────────────────────────────────────────────
-  static const Color primaryColor = Color(0xFF4CAFaa);
-  static const Color primaryDark  = Color(0xFF3D8A84);
+  static const Color primaryColor = Color(0xFF497A72);
+  static const Color primaryDark  = Color(0xFF3D645D);
   static const Color accentBlue   = Color(0xFF00BFFF);
 
   // ── Backgrounds ────────────────────────────────────────────────────
-  static const Color backgroundLight = Colors.white;
-  static const Color backgroundDark  = Color(0xFF121212);
+  static const Color backgroundLight = Color(0xFFF2F5F8);
+  static const Color backgroundDark  = Color(0xFF12151B);
   static const Color chatBgLight     = Color(0xFFF0F8F7);
   static const Color chatBgDark      = Color(0xFF0F1115);
 
   // ── Surface / Card ─────────────────────────────────────────────────
-  static const Color surfaceLight = Color(0xFFF5F7FA);
-  static const Color surfaceDark  = Color(0xFF1E1E1E);
+  static const Color surfaceLight = Colors.white;
+  static const Color surfaceDark  = Color(0xFF1E222D);
 
   // ── Misc ───────────────────────────────────────────────────────────
   static const Color onlineGreen  = Color(0xFF4CAF50);
@@ -32,11 +32,12 @@ class AppTheme {
     appBarTheme: const AppBarTheme(
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: backgroundLight,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
     ),
     cardTheme: CardThemeData(
       elevation: 0,
+      color: surfaceLight,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
     textTheme: const TextTheme(
@@ -56,11 +57,12 @@ class AppTheme {
     appBarTheme: const AppBarTheme(
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: backgroundDark,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
     ),
     cardTheme: CardThemeData(
       elevation: 0,
+      color: surfaceDark,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
     textTheme: const TextTheme(
