@@ -4,8 +4,14 @@ import '../models/restaurant.dart';
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
   final VoidCallback? onTap;
+  final bool isSelected;
 
-  const RestaurantCard({super.key, required this.restaurant, this.onTap});
+  const RestaurantCard({
+    super.key,
+    required this.restaurant,
+    this.onTap,
+    this.isSelected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,11 +25,16 @@ class RestaurantCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0E7C86)
+                : colorScheme.outline.withValues(alpha: 0.18),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              blurRadius: 3,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: isSelected ? 0.12 : 0.06),
+              blurRadius: isSelected ? 10 : 6,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -60,7 +71,7 @@ class RestaurantCard extends StatelessWidget {
                         restaurant.rating.toStringAsFixed(1),
                         style: TextStyle(
                           fontSize: 12,
-                          color: colorScheme.onSurface.withOpacity(0.7),
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -75,22 +86,13 @@ class RestaurantCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    // Check if imagePath is a URL (starts with http or https)
     if (restaurant.imagePath.startsWith('http')) {
       return Image.network(
         restaurant.imagePath,
         height: 80,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          // Fallback to default asset image if network image fails
-          return Image.asset(
-            'assets/images/food/1.png',
-            height: 80,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          );
-        },
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return Container(
@@ -108,23 +110,28 @@ class RestaurantCard extends StatelessWidget {
           );
         },
       );
-    } else {
-      // Use local asset image
-      return Image.asset(
-        restaurant.imagePath,
-        height: 80,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          // Fallback to default asset image if asset fails
-          return Image.asset(
-            'assets/images/food/1.png',
-            height: 80,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          );
-        },
-      );
     }
+
+    return _buildPlaceholder();
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      height: 80,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFFFF0D9), Color(0xFFFFFBF3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.storefront_rounded,
+        size: 30,
+        color: Color(0xFFE77B2E),
+      ),
+    );
   }
 }

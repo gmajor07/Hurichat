@@ -15,6 +15,7 @@ class FirebaseProduct {
   final String location;
   final List<String> deliveryOptions;
   final String sellerType;
+  final String status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int soldCount; // New field for tracking sales
@@ -37,6 +38,7 @@ class FirebaseProduct {
     this.location = '',
     this.deliveryOptions = const [],
     this.sellerType = '',
+    this.status = 'active',
     this.createdAt,
     this.updatedAt,
     this.soldCount = 0,
@@ -79,9 +81,13 @@ class FirebaseProduct {
     DateTime? updatedAt;
     if (data["createdAt"] is Timestamp) {
       createdAt = (data["createdAt"] as Timestamp).toDate();
+    } else if (data["createdAt"] is int) {
+      createdAt = DateTime.fromMillisecondsSinceEpoch(data["createdAt"] as int);
     }
     if (data["updatedAt"] is Timestamp) {
       updatedAt = (data["updatedAt"] as Timestamp).toDate();
+    } else if (data["updatedAt"] is int) {
+      updatedAt = DateTime.fromMillisecondsSinceEpoch(data["updatedAt"] as int);
     }
 
     // Handle delivery options
@@ -116,6 +122,7 @@ class FirebaseProduct {
       location: data["location"] ?? '',
       deliveryOptions: deliveryOpts,
       sellerType: data["sellerType"] ?? '',
+      status: data["status"] ?? 'active',
       createdAt: createdAt,
       updatedAt: updatedAt,
       soldCount: data["soldCount"] ?? 0,
@@ -143,6 +150,7 @@ class FirebaseProduct {
       "location": location,
       "deliveryOptions": deliveryOptions,
       "sellerType": sellerType,
+      "status": status,
       "createdAt": createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),

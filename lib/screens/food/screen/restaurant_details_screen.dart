@@ -109,7 +109,18 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
 
   void _onAddToCart(FirebaseProduct product) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    cartProvider.addItem(product);
+    final result = cartProvider.addItem(product);
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message!),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -122,7 +133,8 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const CustomerCartScreen(),
+                builder: (context) =>
+                    const CustomerCartScreen(scope: CartScope.food),
               ),
             );
           },
@@ -143,12 +155,13 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.shopping_cart_outlined),
+                icon: const Icon(Icons.shopping_basket_outlined),
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const CustomerCartScreen(),
+                      builder: (context) =>
+                          const CustomerCartScreen(scope: CartScope.food),
                     ),
                   );
                 },
@@ -158,7 +171,8 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
                 top: 8,
                 child: Consumer<CartProvider>(
                   builder: (context, cart, child) {
-                    return cart.itemCount > 0
+                    final itemCount = cart.itemCountForScope(CartScope.food);
+                    return itemCount > 0
                         ? Container(
                             padding: const EdgeInsets.all(2),
                             decoration: BoxDecoration(
@@ -170,7 +184,7 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
                               minHeight: 16,
                             ),
                             child: Text(
-                              '${cart.itemCount}',
+                              '$itemCount',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -245,7 +259,7 @@ class _RestaurantDetailsScreenState extends State<RestaurantDetailsScreen> {
                               onTap: () =>
                                   _onCategorySelected(category['name']!),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),

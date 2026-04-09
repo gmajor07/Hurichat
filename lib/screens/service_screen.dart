@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:huruchat/screens/transport_screen.dart';
 
 class ServiceScreen extends StatefulWidget {
   const ServiceScreen({super.key});
@@ -8,8 +9,6 @@ class ServiceScreen extends StatefulWidget {
 }
 
 class _ServiceScreenState extends State<ServiceScreen> {
-  static const Color _quickActionColor = Color(0xFF4DB6B3);
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -117,7 +116,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final crossAxisCount = width < 360 ? 2 : 4;
-            final tileWidth = (width - ((crossAxisCount - 1) * 12)) / crossAxisCount;
+            final tileWidth =
+                (width - ((crossAxisCount - 1) * 12)) / crossAxisCount;
 
             return Wrap(
               spacing: 12,
@@ -247,7 +247,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
                   final item = section.items[index];
                   return InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () => _showComingSoon(item.label),
+                    onTap: () => _handleServiceTap(item),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -292,6 +292,17 @@ class _ServiceScreenState extends State<ServiceScreen> {
     ).showSnackBar(SnackBar(content: Text('$service service coming soon')));
   }
 
+  void _handleServiceTap(_ServiceItem item) {
+    if (item.destination != null) {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => item.destination!()));
+      return;
+    }
+
+    _showComingSoon(item.label);
+  }
+
   List<_ServiceSection> get _sections => [
     _ServiceSection(
       title: 'Financial Services',
@@ -307,6 +318,12 @@ class _ServiceScreenState extends State<ServiceScreen> {
     _ServiceSection(
       title: 'Daily Services',
       items: const [
+        _ServiceItem(
+          'Transport',
+          Icons.map_outlined,
+          Color(0xFF497A72),
+          destination: TransportScreen.new,
+        ),
         _ServiceItem(
           'Mobile Top Up',
           Icons.phone_iphone_outlined,
@@ -361,6 +378,7 @@ class _ServiceItem {
   final String label;
   final IconData icon;
   final Color color;
+  final Widget Function()? destination;
 
-  const _ServiceItem(this.label, this.icon, this.color);
+  const _ServiceItem(this.label, this.icon, this.color, {this.destination});
 }

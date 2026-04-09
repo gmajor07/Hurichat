@@ -129,7 +129,16 @@ class _RelatedProductsScreenState extends State<RelatedProductsScreen> {
       if (doc.exists && mounted) {
         final firebaseProduct = FirebaseProduct.fromMap(doc.id, doc.data()!);
         final cartProvider = Provider.of<CartProvider>(context, listen: false);
-        cartProvider.addItem(firebaseProduct);
+        final result = cartProvider.addItem(firebaseProduct);
+        if (!result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message!),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${firebaseProduct.name} added to cart!'),

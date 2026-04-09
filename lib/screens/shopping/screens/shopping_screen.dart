@@ -392,7 +392,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           top: 8,
           child: Consumer<CartProvider>(
             builder: (context, cart, child) {
-              if (cart.itemCount == 0) {
+              final itemCount = cart.itemCountForScope(CartScope.shopping);
+              if (itemCount == 0) {
                 return const SizedBox.shrink();
               }
               return Container(
@@ -404,7 +405,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${cart.itemCount}',
+                  '$itemCount',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,

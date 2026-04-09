@@ -24,6 +24,7 @@ void main() async {
 
   await Hive.initFlutter();
   await Hive.openBox('messages');
+  await Hive.openBox('cart');
   presenceService.init();
 
   // ⭐️ THE FIX: Wrap MyApp with the ChangeNotifierProvider for CartProvider.
@@ -56,6 +57,8 @@ class MyApp extends StatelessWidget {
         '/phone': (context) => const PhoneAuthPage(),
         '/seller_screen': (context) => const MarketplaceUploadPage(),
         '/account_profile': (context) => const AccountScreen(),
+        '/my_cart_food': (context) =>
+            const CustomerCartScreen(scope: CartScope.food),
         '/my_shopping_cart': (context) => const CustomerCartScreen(),
         '/order_history': (context) => const OrderHistoryScreen(),
       },

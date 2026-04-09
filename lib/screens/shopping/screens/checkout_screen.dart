@@ -16,6 +16,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   String _selectedPaymentMethod = 'Demo Payment';
+  bool _isRefreshing = false;
 
   final List<String> _paymentMethods = [
     'Demo Payment',
@@ -25,17 +26,53 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshAvailability();
+    });
+  }
+
+  Future<void> _refreshAvailability() async {
+    if (!mounted) return;
+    setState(() => _isRefreshing = true);
+    await context.read<CartProvider>().refreshCartAvailability(
+      productIds: widget.selectedProductIds,
+    );
+    if (!mounted) return;
+    setState(() => _isRefreshing = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
     final checkoutItems = cartProvider.items
         .where((item) => widget.selectedProductIds.contains(item.product.id))
         .toList();
     final totalsByCurrency = _totalsByCurrency(checkoutItems);
+    final blockingIssues = checkoutItems
+        .map(
+          (item) => cartProvider.availabilityIssueForProduct(item.product.id),
+        )
+        .whereType<CartAvailabilityIssue>()
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Checkout'),
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            onPressed: _isRefreshing ? null : _refreshAvailability,
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded),
+          ),
+        ],
       ),
       body: checkoutItems.isEmpty
           ? const Center(child: Text('No selected items found in cart.'))
@@ -44,6 +81,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (blockingIssues.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4E5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFFC107)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: blockingIssues
+                            .map(
+                              (issue) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  '• ${issue.message}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF8A5A00),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
                   const Text(
                     'Order Summary',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -197,14 +263,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
 
     try {
-      final totalsByCurrency = _totalsByCurrency(checkoutItems);
-      final totalAmount = checkoutItems.fold<double>(
+      await cartProvider.refreshCartAvailability(
+        productIds: checkoutItems.map((item) => item.product.id),
+      );
+
+      final refreshedItems = cartProvider.items
+          .where((item) => widget.selectedProductIds.contains(item.product.id))
+          .toList();
+      final blockingIssues = refreshedItems
+          .map(
+            (item) => cartProvider.availabilityIssueForProduct(item.product.id),
+          )
+          .whereType<CartAvailabilityIssue>()
+          .toList();
+
+      if (blockingIssues.isNotEmpty) {
+        throw CheckoutValidationException(
+          blockingIssues.map((issue) => issue.message).toList(),
+        );
+      }
+
+      final totalsByCurrency = _totalsByCurrency(refreshedItems);
+      final totalAmount = refreshedItems.fold<double>(
         0,
         (total, item) => total + item.subtotal,
       );
 
       final orderData = {
-        'items': checkoutItems
+        'items': refreshedItems
             .map(
               (item) => {
                 'productId': item.product.id,
@@ -224,25 +310,52 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'userId': FirebaseAuth.instance.currentUser?.uid ?? 'unknown_user',
       };
 
-      await FirebaseFirestore.instance.collection('orders').add(orderData);
-
-      for (final item in checkoutItems) {
-        final productRef = FirebaseFirestore.instance
-            .collection('products')
-            .doc(item.product.id);
-        await FirebaseFirestore.instance.runTransaction((transaction) async {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        for (final item in refreshedItems) {
+          final productRef = FirebaseFirestore.instance
+              .collection('products')
+              .doc(item.product.id);
           final productDoc = await transaction.get(productRef);
-          if (productDoc.exists) {
-            final currentStock = productDoc.data()?['stock'] ?? 0;
-            final newStock = (currentStock as int) - item.quantity;
-            transaction.update(productRef, {
-              'stock': newStock > 0 ? newStock : 0,
-            });
-          }
-        });
-      }
 
-      for (final item in checkoutItems) {
+          if (!productDoc.exists || productDoc.data() == null) {
+            throw CheckoutValidationException([
+              '${item.product.name} is no longer available.',
+            ]);
+          }
+
+          final data = productDoc.data()!;
+          final status = (data['status'] ?? 'active').toString().toLowerCase();
+          final rawQuantity = data['quantity'] ?? data['stock'] ?? 0;
+          final availableQuantity = rawQuantity is num
+              ? rawQuantity.toInt()
+              : int.tryParse(rawQuantity.toString()) ?? 0;
+
+          if (status != 'active' || availableQuantity <= 0) {
+            throw CheckoutValidationException([
+              '${item.product.name} is sold out right now.',
+            ]);
+          }
+
+          if (item.quantity > availableQuantity) {
+            throw CheckoutValidationException([
+              'Only $availableQuantity ${availableQuantity == 1 ? 'item is' : 'items are'} left for ${item.product.name}.',
+            ]);
+          }
+
+          final remainingQuantity = availableQuantity - item.quantity;
+          transaction.update(productRef, {
+            'quantity': remainingQuantity,
+            'soldCount': FieldValue.increment(item.quantity),
+            'status': remainingQuantity > 0 ? 'active' : 'sold_out',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        final orderRef = FirebaseFirestore.instance.collection('orders').doc();
+        transaction.set(orderRef, orderData);
+      });
+
+      for (final item in refreshedItems) {
         cartProvider.removeItem(item.product.id);
       }
 
@@ -265,6 +378,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ],
         ),
       );
+    } on CheckoutValidationException catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      await cartProvider.refreshCartAvailability(
+        productIds: widget.selectedProductIds,
+      );
+      _showValidationDialog(e.messages);
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop();
@@ -273,4 +393,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ).showSnackBar(SnackBar(content: Text('Error placing order: $e')));
     }
   }
+
+  void _showValidationDialog(List<String> messages) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cart Updated'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: messages
+              .map(
+                (message) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('• $message'),
+                ),
+              )
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Review Cart'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CheckoutValidationException implements Exception {
+  final List<String> messages;
+
+  CheckoutValidationException(this.messages);
 }

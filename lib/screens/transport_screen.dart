@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'theme/app_theme.dart';
 
@@ -12,7 +13,10 @@ class TransportScreen extends StatefulWidget {
 
 class _TransportScreenState extends State<TransportScreen> {
   bool _isBookingRide = false;
-  final Completer<GoogleMapController> _controller = Completer<GoogleMapController>();
+  final Completer<GoogleMapController> _controller =
+      Completer<GoogleMapController>();
+  bool _hasLocationPermission = false;
+  String? _locationStatusMessage;
 
   static const CameraPosition _initialPosition = CameraPosition(
     target: LatLng(-6.7924, 39.2083), // Dar es Salaam coordinates
@@ -20,18 +24,102 @@ class _TransportScreenState extends State<TransportScreen> {
   );
 
   final Set<Marker> _markers = {};
+  LatLng _pickupPosition = _initialPosition.target;
+
+  @override
+  void initState() {
+    super.initState();
+    _setPickupMarker(_pickupPosition);
+    unawaited(_prepareLocation());
+  }
 
   void _onMapCreated(GoogleMapController controller) {
     _controller.complete(controller);
+    _setPickupMarker(_pickupPosition);
+    unawaited(_animateToPickup());
+  }
+
+  Future<void> _prepareLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      setState(() {
+        _hasLocationPermission = false;
+        _locationStatusMessage =
+            'Turn on location services to use your current location.';
+      });
+      return;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (!mounted) return;
+
+    if (permission == LocationPermission.denied) {
+      setState(() {
+        _hasLocationPermission = false;
+        _locationStatusMessage = 'Location permission was denied.';
+      });
+      return;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        _hasLocationPermission = false;
+        _locationStatusMessage =
+            'Location permission is permanently denied. Enable it in Settings.';
+      });
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+
+      final currentLatLng = LatLng(position.latitude, position.longitude);
+      setState(() {
+        _hasLocationPermission = true;
+        _locationStatusMessage = null;
+        _pickupPosition = currentLatLng;
+      });
+      _setPickupMarker(currentLatLng);
+      await _animateToPickup();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hasLocationPermission = true;
+        _locationStatusMessage =
+            'We could not fetch your current location yet.';
+      });
+    }
+  }
+
+  void _setPickupMarker(LatLng position) {
+    if (!mounted) return;
     setState(() {
-      _markers.add(
-        const Marker(
-          markerId: MarkerId('pickup'),
-          position: LatLng(-6.7924, 39.2083),
-          infoWindow: InfoWindow(title: 'Pick-up Point'),
-        ),
-      );
+      _markers
+        ..clear()
+        ..add(
+          Marker(
+            markerId: const MarkerId('pickup'),
+            position: position,
+            infoWindow: const InfoWindow(title: 'Pick-up Point'),
+          ),
+        );
     });
+  }
+
+  Future<void> _animateToPickup() async {
+    if (!_controller.isCompleted) return;
+    final controller = await _controller.future;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: _pickupPosition, zoom: 16),
+      ),
+    );
   }
 
   @override
@@ -39,42 +127,56 @@ class _TransportScreenState extends State<TransportScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF12151B) : const Color(0xFFF2F5F8),
+      backgroundColor: isDark
+          ? const Color(0xFF12151B)
+          : const Color(0xFFF2F5F8),
       extendBodyBehindAppBar: _isBookingRide,
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: _isBookingRide ? Colors.transparent : Colors.transparent,
+        backgroundColor: _isBookingRide
+            ? Colors.transparent
+            : Colors.transparent,
         titleSpacing: 16,
-        leading: _isBookingRide 
-          ? Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.black54 : Colors.white70,
-                shape: BoxShape.circle,
+        leading: _isBookingRide
+            ? Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black54 : Colors.white70,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                  onPressed: () => setState(() => _isBookingRide = false),
+                ),
+              )
+            : null,
+        title: _isBookingRide
+            ? null
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Huruchati Transport',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Find your way around the city',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                onPressed: () => setState(() => _isBookingRide = false),
-              ),
-            )
-          : null,
-        title: _isBookingRide ? null : Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Huruchati Transport',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Find your way around the city',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
-            ),
-          ],
-        ),
       ),
-      body: _isBookingRide ? _buildRideBookingUI(isDark) : _buildMainTransportUI(isDark),
+      body: _isBookingRide
+          ? _buildRideBookingUI(isDark)
+          : _buildMainTransportUI(isDark),
     );
   }
 
@@ -96,18 +198,46 @@ class _TransportScreenState extends State<TransportScreen> {
             crossAxisSpacing: 12,
             childAspectRatio: 1.4,
             children: [
-              _buildServiceCard('Ride Hailing', Icons.local_taxi_rounded, Colors.orange, isDark),
-              _buildServiceCard('Car Rental', Icons.directions_car_rounded, Colors.blue, isDark),
-              _buildServiceCard('Bike Rental', Icons.pedal_bike_rounded, Colors.green, isDark),
-              _buildServiceCard('Delivery', Icons.local_shipping_rounded, Colors.redAccent, isDark),
+              _buildServiceCard(
+                'Ride Hailing',
+                Icons.local_taxi_rounded,
+                Colors.orange,
+                isDark,
+              ),
+              _buildServiceCard(
+                'Car Rental',
+                Icons.directions_car_rounded,
+                Colors.blue,
+                isDark,
+              ),
+              _buildServiceCard(
+                'Bike Rental',
+                Icons.pedal_bike_rounded,
+                Colors.green,
+                isDark,
+              ),
+              _buildServiceCard(
+                'Delivery',
+                Icons.local_shipping_rounded,
+                Colors.redAccent,
+                isDark,
+              ),
             ],
           ),
           const SizedBox(height: 24),
           _buildSectionTitle('Recent Locations', isDark),
           const SizedBox(height: 12),
-          _buildRecentLocationTile('Work', '123 Business Avenue, City Center', isDark),
+          _buildRecentLocationTile(
+            'Work',
+            '123 Business Avenue, City Center',
+            isDark,
+          ),
           _buildRecentLocationTile('Home', '45 Garden Street, Suburbs', isDark),
-          _buildRecentLocationTile('Shopping Mall', 'Grand Plaza, North Road', isDark),
+          _buildRecentLocationTile(
+            'Shopping Mall',
+            'Grand Plaza, North Road',
+            isDark,
+          ),
         ],
       ),
     );
@@ -166,7 +296,11 @@ class _TransportScreenState extends State<TransportScreen> {
                 color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 28),
+              child: const Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
           ],
         ),
@@ -177,17 +311,70 @@ class _TransportScreenState extends State<TransportScreen> {
   Widget _buildRideBookingUI(bool isDark) {
     return Stack(
       children: [
-        // Real Google Map
-        GoogleMap(
-          onMapCreated: _onMapCreated,
-          initialCameraPosition: _initialPosition,
-          markers: _markers,
-          myLocationEnabled: true,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
-          mapType: MapType.normal,
-          style: isDark ? _darkMapStyle : null,
+        Positioned.fill(
+          child: GoogleMap(
+            onMapCreated: _onMapCreated,
+            initialCameraPosition: _initialPosition,
+            markers: _markers,
+            myLocationEnabled: _hasLocationPermission,
+            myLocationButtonEnabled: _hasLocationPermission,
+            zoomControlsEnabled: false,
+            mapType: MapType.normal,
+            style: isDark ? _darkMapStyle : null,
+          ),
         ),
+        if (_locationStatusMessage != null)
+          Positioned(
+            top: 96,
+            left: 16,
+            right: 16,
+            child: SafeArea(
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E222D) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.my_location_rounded,
+                        size: 18,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _locationStatusMessage!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _prepareLocation,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
 
         // Draggable Bottom Sheet
         DraggableScrollableSheet(
@@ -199,7 +386,9 @@ class _TransportScreenState extends State<TransportScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E222D) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(32),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -230,32 +419,71 @@ class _TransportScreenState extends State<TransportScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  _buildLocationInput(Icons.circle_outlined, 'Pick-up point', 'Your current location', isDark),
+                  _buildLocationInput(
+                    Icons.circle_outlined,
+                    'Pick-up point',
+                    'Your current location',
+                    isDark,
+                  ),
                   const Padding(
                     padding: EdgeInsets.only(left: 30),
-                    child: SizedBox(height: 10, child: VerticalDivider(thickness: 1, color: Colors.grey)),
+                    child: SizedBox(
+                      height: 10,
+                      child: VerticalDivider(thickness: 1, color: Colors.grey),
+                    ),
                   ),
-                  _buildLocationInput(Icons.location_on_rounded, 'Destination', 'Grand Plaza, North Road', isDark, isPrimary: true),
-                  
+                  _buildLocationInput(
+                    Icons.location_on_rounded,
+                    'Destination',
+                    'Grand Plaza, North Road',
+                    isDark,
+                    isPrimary: true,
+                  ),
+
                   const SizedBox(height: 24),
-                  const Text('Vehicle Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text(
+                    'Vehicle Type',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 100,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
-                        _buildVehicleOption('Economy', 'Tsh 5,000', Icons.car_repair_rounded, true, isDark),
-                        _buildVehicleOption('Premium', 'Tsh 12,000', Icons.directions_car_rounded, false, isDark),
-                        _buildVehicleOption('XL', 'Tsh 18,000', Icons.airport_shuttle_rounded, false, isDark),
+                        _buildVehicleOption(
+                          'Economy',
+                          'Tsh 5,000',
+                          Icons.car_repair_rounded,
+                          true,
+                          isDark,
+                        ),
+                        _buildVehicleOption(
+                          'Premium',
+                          'Tsh 12,000',
+                          Icons.directions_car_rounded,
+                          false,
+                          isDark,
+                        ),
+                        _buildVehicleOption(
+                          'XL',
+                          'Tsh 18,000',
+                          Icons.airport_shuttle_rounded,
+                          false,
+                          isDark,
+                        ),
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
                   _buildSectionTitle('Payment Method', isDark),
                   const SizedBox(height: 12),
-                  _buildRecentLocationTile('Visa •••• 4242', 'Primary payment method', isDark),
+                  _buildRecentLocationTile(
+                    'Visa •••• 4242',
+                    'Primary payment method',
+                    isDark,
+                  ),
 
                   const SizedBox(height: 24),
                   SizedBox(
@@ -265,12 +493,18 @@ class _TransportScreenState extends State<TransportScreen> {
                       onPressed: () => _showBookingSuccess(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         elevation: 0,
                       ),
                       child: const Text(
                         'Confirm Ride',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -284,7 +518,13 @@ class _TransportScreenState extends State<TransportScreen> {
     );
   }
 
-  Widget _buildLocationInput(IconData icon, String label, String hint, bool isDark, {bool isPrimary = false}) {
+  Widget _buildLocationInput(
+    IconData icon,
+    String label,
+    String hint,
+    bool isDark, {
+    bool isPrimary = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -293,14 +533,28 @@ class _TransportScreenState extends State<TransportScreen> {
       ),
       child: Row(
         children: [
-          Icon(icon, color: isPrimary ? AppTheme.primaryColor : Colors.grey, size: 20),
+          Icon(
+            icon,
+            color: isPrimary ? AppTheme.primaryColor : Colors.grey,
+            size: 20,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                Text(hint, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+                Text(
+                  hint,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
               ],
             ),
           ),
@@ -309,37 +563,63 @@ class _TransportScreenState extends State<TransportScreen> {
     );
   }
 
-  Widget _buildVehicleOption(String name, String price, IconData icon, bool isSelected, bool isDark) {
+  Widget _buildVehicleOption(
+    String name,
+    String price,
+    IconData icon,
+    bool isSelected,
+    bool isDark,
+  ) {
     final primary = AppTheme.primaryColor;
     return Container(
       width: 110,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        color: isSelected 
-          ? primary.withValues(alpha: 0.1) 
-          : (isDark ? const Color(0xFF12151B) : const Color(0xFFF2F5F8)),
+        color: isSelected
+            ? primary.withValues(alpha: 0.1)
+            : (isDark ? const Color(0xFF12151B) : const Color(0xFFF2F5F8)),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isSelected ? primary : Colors.transparent, width: 2),
+        border: Border.all(
+          color: isSelected ? primary : Colors.transparent,
+          width: 2,
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: isSelected ? primary : Colors.grey, size: 32),
           const SizedBox(height: 4),
-          Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
+          Text(
+            name,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
           Text(price, style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ],
       ),
     );
   }
 
-  Widget _buildServiceCard(String title, IconData icon, Color color, bool isDark) {
+  Widget _buildServiceCard(
+    String title,
+    IconData icon,
+    Color color,
+    bool isDark,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E222D) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
         ],
       ),
       child: Column(
@@ -347,11 +627,17 @@ class _TransportScreenState extends State<TransportScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          ),
         ],
       ),
     );
@@ -367,12 +653,29 @@ class _TransportScreenState extends State<TransportScreen> {
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.history_rounded, color: Colors.grey, size: 20),
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.history_rounded,
+            color: Colors.grey,
+            size: 20,
+          ),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: 14,
+          color: Colors.grey,
+        ),
         onTap: () {},
       ),
     );
@@ -394,13 +697,23 @@ class _TransportScreenState extends State<TransportScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 64),
+        title: const Icon(
+          Icons.check_circle_rounded,
+          color: Colors.green,
+          size: 64,
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Ride Booked!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const Text(
+              'Ride Booked!',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
-            const Text('Your driver is on the way and will arrive in 5 minutes.', textAlign: TextAlign.center),
+            const Text(
+              'Your driver is on the way and will arrive in 5 minutes.',
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         actions: [
@@ -409,7 +722,10 @@ class _TransportScreenState extends State<TransportScreen> {
               Navigator.pop(ctx);
               setState(() => _isBookingRide = false);
             },
-            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'OK',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

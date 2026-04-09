@@ -47,5 +47,9 @@
 	<true/>
 	<key>NSContactsUsageDescription</key>
 	<string>Huruchat uses your contacts to find registered users you may know.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Huruchat uses your location to show your pickup point and nearby routes on the map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Huruchat uses your location to show your pickup point and nearby routes on the map.</string>
 </dict>
 </plist>

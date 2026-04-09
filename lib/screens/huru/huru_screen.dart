@@ -11,13 +11,13 @@ class HuruScreen extends StatelessWidget {
 
   // --- Helpers ---
   Widget _buildSectionTitle(String title, bool isDark) => Padding(
-    padding: const EdgeInsets.only(left: 4, bottom: 12),
+    padding: const EdgeInsets.only(left: 4, bottom: 8),
     child: Text(
       title,
       style: TextStyle(
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: FontWeight.w700,
-        color: isDark ? Colors.white : Colors.black87,
+        color: isDark ? Colors.white70 : Colors.black54,
       ),
     ),
   );
@@ -34,40 +34,41 @@ class HuruScreen extends StatelessWidget {
     bool isSellerSettings = false,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E222D) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
         leading: Container(
-          width: 42,
-          height: 42,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: color, size: 22),
+          child: Icon(icon, color: color, size: 20),
         ),
         title: Text(
           title,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
         ),
         trailing: Icon(
           Icons.chevron_right_rounded,
-          color: isDark ? Colors.white38 : Colors.black26,
+          color: isDark ? Colors.white24 : Colors.black12,
+          size: 20,
         ),
         onTap: () async {
           final user = FirebaseAuth.instance.currentUser;
@@ -157,106 +158,112 @@ class HuruScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Services Section
-            _buildSectionTitle('Services', isDark),
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ActionButton(
-                  icon: Icons.car_rental_rounded,
-                  label: 'Transport',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportScreen())),
+                // Services Section
+                _buildSectionTitle('Services', isDark),
+                GridView.count(
+                  crossAxisCount: 4,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 0.95,
+                  children: [
+                    _ActionButton(
+                      icon: Icons.car_rental_rounded,
+                      label: 'Transport',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportScreen())),
+                    ),
+                    _ActionButton(
+                      icon: Icons.fastfood_rounded,
+                      label: 'Food',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FoodScreen())),
+                    ),
+                    const _ActionButton(icon: Icons.confirmation_number_rounded, label: 'Ticket'),
+                    const _ActionButton(icon: Icons.receipt_long_rounded, label: 'Bills'),
+                  ],
                 ),
-                _ActionButton(
-                  icon: Icons.fastfood_rounded,
-                  label: 'Food',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FoodScreen())),
+                const SizedBox(height: 20),
+
+                // Account & Settings Section
+                _buildSectionTitle('Account & Settings', isDark),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.shopping_basket_rounded,
+                  title: 'My Food Cart',
+                  color: Colors.orange,
+                  routeName: '/my_cart_food',
+                  isDark: isDark,
                 ),
-                const _ActionButton(icon: Icons.confirmation_number_rounded, label: 'Ticket'),
-                const _ActionButton(icon: Icons.receipt_long_rounded, label: 'Bills'),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.shopping_bag_rounded,
+                  title: 'Shopping Cart',
+                  color: Colors.blue,
+                  routeName: '/my_shopping_cart',
+                  isDark: isDark,
+                ),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.headset_mic_rounded,
+                  title: 'Customer Support',
+                  color: Colors.teal,
+                  routeName: '/customer_support',
+                  isDark: isDark,
+                ),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.local_activity_rounded,
+                  title: 'Coupons & Offers',
+                  color: Colors.pink,
+                  routeName: '/coupons',
+                  isDark: isDark,
+                ),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.person_rounded,
+                  title: 'Profile Settings',
+                  color: primary,
+                  routeName: '/account_profile',
+                  isDark: isDark,
+                ),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.storefront_rounded,
+                  title: 'Seller Settings',
+                  color: Colors.indigo,
+                  isSellerSettings: true,
+                  isDark: isDark,
+                ),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.dashboard_customize_rounded,
+                  title: 'Seller Dashboard',
+                  color: const Color(0xFF4CAFAB),
+                  isSellerDashboard: true,
+                  isDark: isDark,
+                ),
+                _buildModernSettingsTile(
+                  context,
+                  icon: Icons.logout_rounded,
+                  title: 'Logout',
+                  color: Colors.red,
+                  isLogout: true,
+                  isDark: isDark,
+                ),
+                // Safe area padding at bottom to ensure logout is not hidden by nav
+                const SizedBox(height: 100),
               ],
             ),
-            const SizedBox(height: 28),
-
-            // Account & Settings Section
-            _buildSectionTitle('Account & Settings', isDark),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.shopping_basket_rounded,
-              title: 'My Food Cart',
-              color: Colors.orange,
-              routeName: '/my_cart_food',
-              isDark: isDark,
-            ),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.shopping_bag_rounded,
-              title: 'Shopping Cart',
-              color: Colors.blue,
-              routeName: '/my_shopping_cart',
-              isDark: isDark,
-            ),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.headset_mic_rounded,
-              title: 'Customer Support',
-              color: Colors.teal,
-              routeName: '/customer_support',
-              isDark: isDark,
-            ),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.local_activity_rounded,
-              title: 'Coupons & Offers',
-              color: Colors.pink,
-              routeName: '/coupons',
-              isDark: isDark,
-            ),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.person_rounded,
-              title: 'Profile Settings',
-              color: primary,
-              routeName: '/account_profile',
-              isDark: isDark,
-            ),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.storefront_rounded,
-              title: 'Seller Settings',
-              color: Colors.indigo,
-              isSellerSettings: true,
-              isDark: isDark,
-            ),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.dashboard_customize_rounded,
-              title: 'Seller Dashboard',
-              color: const Color(0xFF4CAFAB),
-              isSellerDashboard: true,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 8),
-            _buildModernSettingsTile(
-              context,
-              icon: Icons.logout_rounded,
-              title: 'Logout',
-              color: Colors.red,
-              isLogout: true,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -278,30 +285,33 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E222D) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             if (!isDark)
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: primary, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: isDark ? Colors.white70 : Colors.black87,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+            Icon(icon, color: primary, size: 24),
+            const SizedBox(height: 4),
+            FittedBox(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black87,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

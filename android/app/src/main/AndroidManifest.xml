@@ -5,7 +5,7 @@
         android:icon="@mipmap/huru">
 
         <meta-data android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE"/>
+            android:value="AIzaSyADfQsVr5wLvJUpcsI6NQYFbfveExZljhY"/>
 
         <activity
             android:name=".MainActivity"

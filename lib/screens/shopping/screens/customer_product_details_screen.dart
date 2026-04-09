@@ -326,7 +326,16 @@ class _CustomerProductDetailsScreenState
       if (doc.exists && mounted) {
         final firebaseProduct = FirebaseProduct.fromMap(doc.id, doc.data()!);
         final cartProvider = Provider.of<CartProvider>(context, listen: false);
-        cartProvider.addItem(firebaseProduct);
+        final result = cartProvider.addItem(firebaseProduct);
+        if (!result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message!),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -348,7 +357,17 @@ class _CustomerProductDetailsScreenState
     final isInCart = cartProvider.isInCart(widget.product.id);
 
     if (!isInCart) {
-      cartProvider.addItem(widget.product);
+      final result = cartProvider.addItem(widget.product);
+      if (!result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message!),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -381,25 +400,32 @@ class _CustomerProductDetailsScreenState
   }
 
   void _navigateToCartScreen(BuildContext context) {
-    // Use Navigator.of(context) to ensure proper navigation stack
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const CustomerCartScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CustomerCartScreen(scope: _cartScope),
+      ),
+    );
   }
 
   void _buyNow(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
-    // Clear current cart and add only this item
-    cartProvider.clearCart();
-    cartProvider.addItem(widget.product);
+    cartProvider.clearCartForScope(_cartScope);
+    final result = cartProvider.addItem(widget.product);
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message!),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
-    // Navigate directly to checkout
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            const CustomerCartScreen(), // Go to cart first, then they can proceed to checkout
+        builder: (context) => CustomerCartScreen(scope: _cartScope),
       ),
     );
 
@@ -410,6 +436,11 @@ class _CustomerProductDetailsScreenState
       ),
     );
   }
+
+  CartScope get _cartScope =>
+      widget.product.sellerType.trim().toLowerCase() == 'food'
+      ? CartScope.food
+      : CartScope.shopping;
 
   @override
   void dispose() {
@@ -438,6 +469,7 @@ class _CustomerProductDetailsScreenState
         actions: [
           Consumer<CartProvider>(
             builder: (context, cartProvider, child) {
+              final itemCount = cartProvider.itemCountForScope(_cartScope);
               return SizedBox(
                 width: 48,
                 height: 48,
@@ -449,7 +481,7 @@ class _CustomerProductDetailsScreenState
                         _navigateToCartScreen(context);
                       },
                     ),
-                    if (cartProvider.itemCount > 0)
+                    if (itemCount > 0)
                       Positioned(
                         right: 4,
                         top: 4,
@@ -464,7 +496,7 @@ class _CustomerProductDetailsScreenState
                             minHeight: 16,
                           ),
                           child: Text(
-                            cartProvider.itemCount.toString(),
+                            itemCount.toString(),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -1021,7 +1053,20 @@ class _CustomerProductDetailsScreenState
                                       ),
                                       IconButton(
                                         onPressed: () {
-                                          cartProvider.addItem(widget.product);
+                                          final result = cartProvider.addItem(
+                                            widget.product,
+                                          );
+                                          if (!result.success) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(result.message!),
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
                                         },
                                         icon: const Icon(
                                           Icons.add_circle_outline,
