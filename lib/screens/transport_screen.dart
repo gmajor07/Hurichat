@@ -36,7 +36,8 @@ class _TransportScreenState extends State<TransportScreen> {
   void _onMapCreated(GoogleMapController controller) {
     _controller.complete(controller);
     _setPickupMarker(_pickupPosition);
-    unawaited(_animateToPickup());
+    unawaited(_
+    animateToPickup());
   }
 
   Future<void> _prepareLocation() async {

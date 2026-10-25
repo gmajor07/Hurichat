@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "huruchat-2c9f9",
+    "staging": "huruchat-2c9f9"
+  },
+  "targets": {},
+  "etags": {}
+}

@@ -7,9 +7,11 @@ import 'package:huruchat/screens/auth/login_screen.dart';
 import 'package:huruchat/screens/chat/presence_service.dart';
 import 'package:huruchat/screens/home/home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:huruchat/screens/shopping/screens/customer_cart_screen.dart';
 import 'package:huruchat/screens/shopping/screens/order_history_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:huruchat/services/push_notification_service.dart';
 import 'screens/provider/cart_provider.dart';
 import 'screens/seller/upload_product.dart';
 import 'screens/theme/app_theme.dart';
@@ -21,11 +23,13 @@ final presenceService = PresenceService();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   await Hive.initFlutter();
   await Hive.openBox('messages');
   await Hive.openBox('cart');
   presenceService.init();
+  await PushNotificationService.instance.init();
 
   // ⭐️ THE FIX: Wrap MyApp with the ChangeNotifierProvider for CartProvider.
   runApp(
