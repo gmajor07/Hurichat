@@ -1,3 +1,4 @@
+import '../../config/app_features.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,6 +34,10 @@ class HuruScreen extends StatelessWidget {
     bool isSellerDashboard = false,
     bool isSellerSettings = false,
   }) {
+    if ((routeName != null && !AppFeatures.canOpenRoute(routeName)) ||
+        ((isSellerDashboard || isSellerSettings) && !AppFeatures.commerce)) {
+      return const SizedBox.shrink();
+    }
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -60,10 +65,7 @@ class HuruScreen extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         trailing: Icon(
           Icons.chevron_right_rounded,
@@ -83,9 +85,9 @@ class HuruScreen extends StatelessWidget {
 
           if (isSellerDashboard || isSellerSettings) {
             if (user == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Login required.")),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("Login required.")));
               return;
             }
 
@@ -98,7 +100,9 @@ class HuruScreen extends StatelessWidget {
               if (userData?['role'] != 'seller' ||
                   userData?['sellerStatus'] != 'active') {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Access restricted to active sellers.")),
+                  const SnackBar(
+                    content: Text("Access restricted to active sellers."),
+                  ),
                 );
                 return;
               }
@@ -107,16 +111,17 @@ class HuruScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => SellerProductsScreen(sellerId: user.uid),
+                    builder: (context) =>
+                        SellerProductsScreen(sellerId: user.uid),
                   ),
                 );
               } else {
                 Navigator.pushNamed(context, '/seller_screen');
               }
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Error: $e")),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text("Error: $e")));
             }
             return;
           }
@@ -147,7 +152,7 @@ class HuruScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Huruchati Huru',
+              'Huruchat Huru',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             SizedBox(height: 2),
@@ -167,31 +172,46 @@ class HuruScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Services Section
-                _buildSectionTitle('Services', isDark),
-                GridView.count(
-                  crossAxisCount: 4,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.95,
-                  children: [
-                    _ActionButton(
-                      icon: Icons.car_rental_rounded,
-                      label: 'Transport',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportScreen())),
-                    ),
-                    _ActionButton(
-                      icon: Icons.fastfood_rounded,
-                      label: 'Food',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FoodScreen())),
-                    ),
-                    const _ActionButton(icon: Icons.confirmation_number_rounded, label: 'Ticket'),
-                    const _ActionButton(icon: Icons.receipt_long_rounded, label: 'Bills'),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
+                if (AppFeatures.services) ...[
+                  _buildSectionTitle('Services', isDark),
+                  GridView.count(
+                    crossAxisCount: 4,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 0.95,
+                    children: [
+                      _ActionButton(
+                        icon: Icons.car_rental_rounded,
+                        label: 'Transport',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TransportScreen(),
+                          ),
+                        ),
+                      ),
+                      _ActionButton(
+                        icon: Icons.fastfood_rounded,
+                        label: 'Food',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const FoodScreen()),
+                        ),
+                      ),
+                      const _ActionButton(
+                        icon: Icons.confirmation_number_rounded,
+                        label: 'Ticket',
+                      ),
+                      const _ActionButton(
+                        icon: Icons.receipt_long_rounded,
+                        label: 'Bills',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
                 // Account & Settings Section
                 _buildSectionTitle('Account & Settings', isDark),
                 _buildModernSettingsTile(
@@ -280,7 +300,7 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = AppTheme.primaryColor;
-    
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),

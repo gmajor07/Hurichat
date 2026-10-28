@@ -18,7 +18,7 @@ AppBar buildHomeAppBar({
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'HuruChati',
+            'Huruchat',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
@@ -34,6 +34,26 @@ AppBar buildHomeAppBar({
             color: isDark ? Colors.grey.shade800 : Colors.white,
             onSelected: onSelectMenu,
             itemBuilder: (BuildContext context) => [
+              PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline, color: themeColor),
+                    const SizedBox(width: 12),
+                    const Text('My Profile'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_outlined, color: themeColor),
+                    const SizedBox(width: 12),
+                    const Text('Settings'),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'requests',
                 child: Row(

@@ -23,7 +23,7 @@ class DiscoverScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Huruchati Discover',
+              'Huruchat Discover',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             SizedBox(height: 2),

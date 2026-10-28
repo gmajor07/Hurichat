@@ -1,3 +1,4 @@
+import '../../config/app_features.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -43,46 +44,59 @@ Widget buildBottomNavigationBar({
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(5, (index) {
+        children: AppFeatures.visibleNavigationIndices.map((index) {
           final bool selected = index == currentIndex;
-          return InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () => onTap(index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: selected
-                    ? activeColor
-                    : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-                shape: BoxShape.circle,
-                border: Border.all(
+          return Semantics(
+            label: switch (index) {
+              0 => 'Chats',
+              1 => 'Services',
+              2 => 'Shopping',
+              3 => 'Discover',
+              4 => 'Profile',
+              5 => 'Contacts',
+              _ => '',
+            },
+            selected: selected,
+            button: true,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () => onTap(index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
                   color: selected
-                      ? dockColor.withValues(alpha: 0.85)
-                      : Colors.transparent,
-                  width: 1.4,
+                      ? activeColor
+                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected
+                        ? dockColor.withValues(alpha: 0.85)
+                        : Colors.transparent,
+                    width: 1.4,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: activeColor.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
                 ),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: activeColor.withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Center(
-                child: _buildNavIcon(
-                  index: index,
-                  color: selected ? Colors.white : inactiveColor,
-                  icons: icons,
+                child: Center(
+                  child: _buildNavIcon(
+                    index: index,
+                    color: selected ? Colors.white : inactiveColor,
+                    icons: icons,
+                  ),
                 ),
               ),
             ),
           );
-        }),
+        }).toList(),
       ),
     ),
   );
@@ -93,6 +107,9 @@ Widget _buildNavIcon({
   required Color color,
   required List<IconData> icons,
 }) {
+  if (index == 5) {
+    return Icon(Icons.people_outline, size: 22, color: color);
+  }
   if (index == 0) {
     return SvgPicture.asset(
       'assets/icon/chat.svg',

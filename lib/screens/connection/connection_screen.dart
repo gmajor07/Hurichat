@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../chat/chat_screen.dart';
 
 class ConnectionScreen extends StatefulWidget {
-  const ConnectionScreen({super.key});
+  final bool contactsMode;
+
+  const ConnectionScreen({super.key, this.contactsMode = false});
 
   @override
   State<ConnectionScreen> createState() => _ConnectionScreenState();
@@ -15,6 +17,7 @@ class _ConnectionScreenState extends State<ConnectionScreen>
   final currentUser = FirebaseAuth.instance.currentUser;
   final Color themeColor = const Color(0xFF4CAFAB);
   late TabController _tabController;
+  String _contactQuery = '';
 
   @override
   void dispose() {
@@ -159,13 +162,16 @@ class _ConnectionScreenState extends State<ConnectionScreen>
   Widget _buildConnectionCard(
     Map<String, dynamic> connectionData,
     String type,
-    String userId,
-  ) {
+    String userId, {
+    Map<String, dynamic>? loadedUser,
+  }) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     if (userId.isEmpty) return const SizedBox();
 
     return FutureBuilder<Map<String, dynamic>>(
-      future: _getUserData(userId),
+      future: loadedUser == null
+          ? _getUserData(userId)
+          : Future.value(loadedUser),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return _buildShimmerCard();
 
@@ -557,6 +563,68 @@ class _ConnectionScreenState extends State<ConnectionScreen>
     }
   }
 
+  // Reuse accepted connections, user profiles and the existing chat action.
+  // This path does not read device contacts or request contact permissions.
+  Widget _buildContactsList() {
+    if (currentUser == null) return const Center(child: Text('Please log in'));
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('connections')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('Could not load contacts'));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final connections = snapshot.data!.docs
+            .where((doc) => doc.data()['status'] == 'accepted')
+            .toList();
+        if (connections.isEmpty) {
+          return Center(child: Text(_getEmptyStateText('accepted')));
+        }
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: Future.wait(connections.map((doc) => _getUserData(doc.id))),
+          builder: (context, users) {
+            if (!users.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final matches = List.generate(connections.length, (i) => i).where((
+              i,
+            ) {
+              final user = users.data![i];
+              return user['name'].toString().toLowerCase().contains(
+                    _contactQuery,
+                  ) ||
+                  user['phone'].toString().toLowerCase().contains(
+                    _contactQuery,
+                  );
+            }).toList();
+            if (matches.isEmpty) {
+              return const Center(child: Text('No contacts found'));
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.only(top: 16, bottom: 100),
+              itemCount: matches.length,
+              itemBuilder: (context, index) {
+                final i = matches[index];
+                return _buildConnectionCard(
+                  connections[i].data(),
+                  'accepted',
+                  connections[i].id,
+                  loadedUser: users.data![i],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   // ---------- 🔹 Build UI ----------
   @override
   Widget build(BuildContext context) {
@@ -569,7 +637,7 @@ class _ConnectionScreenState extends State<ConnectionScreen>
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Text(
-          'Connections',
+          widget.contactsMode ? 'Contacts' : 'Connections',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -577,39 +645,65 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           ),
         ),
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: themeColor,
-          labelColor: themeColor,
-          unselectedLabelColor: isDark
-              ? Colors.grey.shade400
-              : Colors.grey.shade600,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.normal,
-            fontSize: 12,
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          tabs: const [
-            Tab(icon: Icon(Icons.pending_actions, size: 20), text: 'Pending'),
-            Tab(icon: Icon(Icons.send, size: 20), text: 'Sent'),
-            Tab(icon: Icon(Icons.people, size: 20), text: 'Connected'),
-            Tab(icon: Icon(Icons.cancel, size: 20), text: 'Rejected'),
-          ],
-        ),
+        bottom: widget.contactsMode
+            ? null
+            : TabBar(
+                controller: _tabController,
+                indicatorColor: themeColor,
+                labelColor: themeColor,
+                unselectedLabelColor: isDark
+                    ? Colors.grey.shade400
+                    : Colors.grey.shade600,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.normal,
+                  fontSize: 12,
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: const [
+                  Tab(
+                    icon: Icon(Icons.pending_actions, size: 20),
+                    text: 'Pending',
+                  ),
+                  Tab(icon: Icon(Icons.send, size: 20), text: 'Sent'),
+                  Tab(icon: Icon(Icons.people, size: 20), text: 'Connected'),
+                  Tab(icon: Icon(Icons.cancel, size: 20), text: 'Rejected'),
+                ],
+              ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildConnectionList('pending'),
-          _buildConnectionList('sent'),
-          _buildConnectionList('accepted'),
-          _buildConnectionList('rejected'),
-        ],
-      ),
+      body: widget.contactsMode
+          ? Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Search contacts...',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (value) => setState(
+                      () => _contactQuery = value.trim().toLowerCase(),
+                    ),
+                  ),
+                ),
+                Expanded(child: _buildContactsList()),
+              ],
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildConnectionList('pending'),
+                _buildConnectionList('sent'),
+                _buildConnectionList('accepted'),
+                _buildConnectionList('rejected'),
+              ],
+            ),
     );
   }
 }

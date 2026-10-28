@@ -1,3 +1,4 @@
+import '../../config/app_features.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -32,10 +33,17 @@ class _HomeScreenState extends State<HomeScreen> {
     const ShoppingScreen(),
     const DiscoverScreen(),
     const HuruScreen(),
+    const ConnectionScreen(contactsMode: true),
   ];
 
   void _handleMenuSelection(String value, BuildContext context) {
     switch (value) {
+      case 'profile':
+        Navigator.pushNamed(context, '/account_profile');
+        break;
+      case 'settings':
+        setState(() => _currentIndex = 4);
+        break;
       case 'logout':
         _showLogoutDialog(context);
         break;
@@ -118,7 +126,11 @@ class _HomeScreenState extends State<HomeScreen> {
         context: context,
         currentIndex: _currentIndex,
         themeColor: themeColor,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          if (AppFeatures.visibleNavigationIndices.contains(index)) {
+            setState(() => _currentIndex = index);
+          }
+        },
       ),
       floatingActionButton: buildFAB(
         currentIndex: _currentIndex,

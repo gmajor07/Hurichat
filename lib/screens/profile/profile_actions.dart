@@ -1,3 +1,4 @@
+import '../../config/app_features.dart';
 import 'package:flutter/material.dart';
 
 class ProfileActions extends StatelessWidget {
@@ -42,31 +43,33 @@ class ProfileActions extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton.icon(
-            onPressed: onOrderHistory,
-            icon: const Icon(Icons.receipt_long, color: Colors.white),
-            label: const Text(
-              'Order History',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+        if (AppFeatures.commerce) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton.icon(
+              onPressed: onOrderHistory,
+              icon: const Icon(Icons.receipt_long, color: Colors.white),
+              label: const Text(
+                'Order History',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
               ),
-              elevation: 0,
             ),
           ),
-        ),
-        if (onBecomeSeller != null) ...[
+        ],
+        if (AppFeatures.commerce && onBecomeSeller != null) ...[
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,

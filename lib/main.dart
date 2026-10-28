@@ -1,3 +1,5 @@
+import 'config/feature_routes.dart';
+import 'screens/connection/connection_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:huruchat/firebase_options.dart';
@@ -49,15 +51,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'HURUchati App',
+      title: 'Huruchat App',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       home: const WelcomeScreen(),
-      routes: {
+      routes: guardFeatureRoutes({
         '/welcome_screen': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
+        '/contacts': (context) => const ConnectionScreen(contactsMode: true),
         '/phone': (context) => const PhoneAuthPage(),
         '/seller_screen': (context) => const MarketplaceUploadPage(),
         '/account_profile': (context) => const AccountScreen(),
@@ -65,7 +68,7 @@ class MyApp extends StatelessWidget {
             const CustomerCartScreen(scope: CartScope.food),
         '/my_shopping_cart': (context) => const CustomerCartScreen(),
         '/order_history': (context) => const OrderHistoryScreen(),
-      },
+      }, fallback: (context) => const HomeScreen()),
     );
   }
 }

@@ -36,8 +36,7 @@ class _TransportScreenState extends State<TransportScreen> {
   void _onMapCreated(GoogleMapController controller) {
     _controller.complete(controller);
     _setPickupMarker(_pickupPosition);
-    unawaited(_
-    animateToPickup());
+    unawaited(_animateToPickup());
   }
 
   Future<void> _prepareLocation() async {
@@ -158,7 +157,7 @@ class _TransportScreenState extends State<TransportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Huruchati Transport',
+                    'Huruchat Transport',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,

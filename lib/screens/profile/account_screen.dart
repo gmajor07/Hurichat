@@ -1,3 +1,4 @@
+import '../../config/app_features.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -150,7 +151,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     const SizedBox(height: 20),
 
                     // ⭐ SELLER SECTION
-                    if (userData?['role'] == 'seller')
+                    if (AppFeatures.commerce && userData?['role'] == 'seller')
                       SizedBox(
                         width: double.infinity,
                         height: 56,
