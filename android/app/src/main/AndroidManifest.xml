@@ -4,6 +4,9 @@
         android:name="${applicationName}"
         android:icon="@mipmap/huru">
 
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/huru" />
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyADfQsVr5wLvJUpcsI6NQYFbfveExZljhY"/>
 
@@ -37,6 +40,7 @@
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>

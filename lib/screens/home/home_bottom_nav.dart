@@ -14,12 +14,6 @@ Widget buildBottomNavigationBar({
       ? Colors.grey.shade400
       : Colors.grey.shade600;
   final Color activeColor = themeColor.withValues(alpha: 0.95);
-  const icons = [
-    Icons.handyman_outlined,
-    Icons.shopping_bag_outlined,
-    Icons.explore_outlined,
-  ];
-
   return SafeArea(
     top: false,
     minimum: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -49,10 +43,11 @@ Widget buildBottomNavigationBar({
           return Semantics(
             label: switch (index) {
               0 => 'Chats',
+              6 => 'Status',
               1 => 'Services',
               2 => 'Shopping',
               3 => 'Discover',
-              4 => 'Profile',
+              4 => 'Me',
               5 => 'Contacts',
               _ => '',
             },
@@ -90,7 +85,6 @@ Widget buildBottomNavigationBar({
                   child: _buildNavIcon(
                     index: index,
                     color: selected ? Colors.white : inactiveColor,
-                    icons: icons,
                   ),
                 ),
               ),
@@ -102,11 +96,7 @@ Widget buildBottomNavigationBar({
   );
 }
 
-Widget _buildNavIcon({
-  required int index,
-  required Color color,
-  required List<IconData> icons,
-}) {
+Widget _buildNavIcon({required int index, required Color color}) {
   if (index == 5) {
     return Icon(Icons.people_outline, size: 22, color: color);
   }
@@ -128,9 +118,10 @@ Widget _buildNavIcon({
   }
 
   final IconData icon = switch (index) {
-    1 => icons[0],
-    2 => icons[1],
-    3 => icons[2],
+    1 => Icons.handyman_outlined,
+    2 => Icons.shopping_bag_outlined,
+    3 => Icons.explore_outlined,
+    6 => Icons.circle_outlined,
     _ => Icons.help_outline,
   };
   return Icon(icon, size: 22, color: color);

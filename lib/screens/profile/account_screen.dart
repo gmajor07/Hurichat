@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../user_account/update_profile_page.dart';
+import '../user_account/profile_update_logic.dart';
 import '../shopping/screens/order_history_screen.dart';
 import 'date_formatter.dart';
 import 'info_row.dart';
@@ -55,14 +56,17 @@ class _AccountScreenState extends State<AccountScreen> {
       if (mounted) {
         setState(() => _loading = false);
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
+      }
     }
   }
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/login');
   }
 
@@ -202,20 +206,20 @@ class _AccountScreenState extends State<AccountScreen> {
         InfoRow(
           icon: Icons.person_outline,
           title: 'Full Name',
-          value: userData?['name'] ?? 'Not set',
+          value: profileStringValue(userData?['name'], fallback: 'Not set'),
         ),
 
         InfoRow(
           icon: Icons.phone_iphone_outlined,
           title: 'Phone Number',
-          value: userData?['phone'] ?? 'Not set',
+          value: profileStringValue(userData?['phone'], fallback: 'Not set'),
         ),
 
-        if (userData?['gender'] != null)
+        if (profileStringValue(userData?['gender'], fallback: '').isNotEmpty)
           InfoRow(
             icon: Icons.transgender,
             title: 'Gender',
-            value: userData!['gender'] as String,
+            value: profileStringValue(userData?['gender'], fallback: ''),
           ),
 
         if (userData?['age'] != null)
@@ -235,9 +239,29 @@ class _AccountScreenState extends State<AccountScreen> {
         InfoRow(
           icon: Icons.circle,
           title: 'Status',
-          value: userData?['status'] ?? 'Active',
+          value: profileStringValue(
+            userData?['status'],
+            fallback: 'Unavailable',
+          ),
+        ),
+        InfoRow(
+          icon: Icons.access_time,
+          title: 'Last seen',
+          value: _formatLastSeen(userData?['lastSeen']),
         ),
       ],
     );
+  }
+
+  String _formatLastSeen(dynamic value) {
+    final date = switch (value) {
+      Timestamp timestamp => timestamp.toDate(),
+      DateTime dateTime => dateTime,
+      _ => null,
+    };
+    if (date == null) return 'Unavailable';
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '${date.day}/${date.month}/${date.year} $hour:$minute';
   }
 }

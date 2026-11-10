@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../user_account/profile_update_logic.dart';
 
 class ProfileHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -9,6 +10,7 @@ class ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final photoUrl = profileStringValue(userData?['photoUrl'], fallback: '');
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -23,11 +25,10 @@ class ProfileHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 35,
                 backgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
-                backgroundImage:
-                    (userData?['photoUrl'] as String?)?.isNotEmpty == true
-                    ? NetworkImage(userData!['photoUrl'] as String)
+                backgroundImage: photoUrl.isNotEmpty
+                    ? NetworkImage(photoUrl)
                     : null,
-                child: (userData?['photoUrl'] as String?)?.isNotEmpty == true
+                child: photoUrl.isNotEmpty
                     ? null
                     : Icon(
                         Icons.person,
@@ -59,7 +60,10 @@ class ProfileHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  userData?['name'] ?? 'Unknown User',
+                  profileStringValue(
+                    userData?['name'],
+                    fallback: 'Unknown User',
+                  ),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -68,7 +72,10 @@ class ProfileHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  userData?['phone'] ?? 'No phone number',
+                  profileStringValue(
+                    userData?['phone'],
+                    fallback: 'No phone number',
+                  ),
                   style: TextStyle(
                     fontSize: 14,
                     color: isDark ? Colors.grey[400] : Colors.grey[600],

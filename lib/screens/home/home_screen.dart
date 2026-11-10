@@ -8,6 +8,7 @@ import '../users_list_screen.dart';
 import '../service_screen.dart';
 import '../shopping/screens/shopping_screen.dart';
 import '../huru/huru_screen.dart';
+import '../status_screen.dart';
 
 // Parts
 import 'home_appbar.dart';
@@ -15,6 +16,7 @@ import 'home_bottom_nav.dart';
 import 'home_fab.dart';
 import '../connection/connection_screen.dart';
 import '../connection/connection_request.dart';
+import '../../services/push_notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +29,14 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0; // Start with UsersListScreen
   final Color themeColor = const Color(0xFF4CAFAB);
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService.instance.handlePendingNotificationTap();
+    });
+  }
+
   final List<Widget> _screens = [
     const UsersListScreen(), // Chats
     const ServiceScreen(),
@@ -34,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const DiscoverScreen(),
     const HuruScreen(),
     const ConnectionScreen(contactsMode: true),
+    const StatusScreen(),
   ];
 
   void _handleMenuSelection(String value, BuildContext context) {

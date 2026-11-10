@@ -30,6 +30,7 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('messages');
   await Hive.openBox('cart');
+  await Hive.openBox('drafts');
   presenceService.init();
   await PushNotificationService.instance.init();
 
@@ -50,6 +51,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: pushNotificationNavigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Huruchat App',
       theme: AppTheme.lightTheme,

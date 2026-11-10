@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:huruchat/utils/phone_hash_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'connection_flow.dart';
 
 class ConnectionsDiscoveryScreen extends StatefulWidget {
   const ConnectionsDiscoveryScreen({super.key});
@@ -26,6 +27,8 @@ class _ConnectionsDiscoveryScreenState
   String? _syncMessage;
   int _contactCount = 0;
   final Set<String> _invitedNumbers = {};
+  final Set<String> _requestingIds = {};
+  final Map<String, String> _requestStatuses = {};
 
   @override
   void initState() {
@@ -42,8 +45,18 @@ class _ConnectionsDiscoveryScreenState
       return;
     }
 
-    await _loadConnections();
-    await _syncContactsAndDiscoverUsers();
+    try {
+      await _loadConnections();
+      await _syncContactsAndDiscoverUsers();
+    } catch (e, st) {
+      debugPrint('Failed to initialize discovery: $e\n$st');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _syncingContacts = false;
+        _syncMessage = 'Failed to load connections. Please try again.';
+      });
+    }
   }
 
   Future<void> _loadConnections() async {
@@ -239,47 +252,68 @@ class _ConnectionsDiscoveryScreenState
 
     final firestore = FirebaseFirestore.instance;
 
-    await firestore
-        .collection('users')
-        .doc(targetUserId)
-        .collection('connections')
-        .doc(currentUser!.uid)
-        .set({
-          'status': 'pending',
-          'senderId': currentUser!.uid,
-          'senderName': currentUser!.displayName ?? 'Unknown User',
-          'receiverId': targetUserId,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-    await firestore
-        .collection('users')
-        .doc(currentUser!.uid)
-        .collection('connections')
-        .doc(targetUserId)
-        .set({
-          'status': 'sent',
-          'senderId': currentUser!.uid,
-          'receiverId': targetUserId,
-          'receiverName': targetUserName,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-    if (!mounted) return;
-
-    setState(() {
-      connectedOrPendingIds.add(targetUserId);
-      _discoveredUsers.removeWhere((user) => user['uid'] == targetUserId);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connection request sent to $targetUserName'),
-        backgroundColor: themeColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    try {
+      final completed = await runConnectionActionOnce(
+        _requestingIds,
+        targetUserId,
+        () async {
+          final documents = createConnectionRequestDocuments(
+            senderId: currentUser!.uid,
+            senderName: currentUser!.displayName ?? 'Unknown User',
+            receiverId: targetUserId,
+            receiverName: targetUserName,
+            timestamp: FieldValue.serverTimestamp(),
+          );
+          final batch = firestore.batch();
+          batch.set(
+            firestore
+                .collection('users')
+                .doc(targetUserId)
+                .collection('connections')
+                .doc(currentUser!.uid),
+            documents.incoming,
+          );
+          batch.set(
+            firestore
+                .collection('users')
+                .doc(currentUser!.uid)
+                .collection('connections')
+                .doc(targetUserId),
+            documents.outgoing,
+          );
+          await batch.commit();
+          if (!mounted) return;
+          setState(() {
+            connectedOrPendingIds.add(targetUserId);
+            _requestStatuses[targetUserId] = 'sent';
+          });
+        },
+        onStateChanged: () {
+          if (mounted) setState(() {});
+        },
+      );
+      if (!completed || !mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Connection request sent to $targetUserName'),
+          backgroundColor: themeColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (e, st) {
+      debugPrint('Failed to send connection request: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not send request. Please try again.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _inviteContact(Map<String, dynamic> data) async {
@@ -442,9 +476,27 @@ class _ConnectionsDiscoveryScreenState
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                onPressed: () => _sendRequest(userId, name.toString()),
-                icon: Icon(Icons.person_add_alt_1, color: themeColor, size: 20),
-                tooltip: 'Send Connection Request',
+                onPressed:
+                    _requestingIds.contains(userId) ||
+                        _requestStatuses[userId] == 'sent'
+                    ? null
+                    : () => _sendRequest(userId, name.toString()),
+                icon: _requestingIds.contains(userId)
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        _requestStatuses[userId] == 'sent'
+                            ? Icons.check
+                            : Icons.person_add_alt_1,
+                        color: themeColor,
+                        size: 20,
+                      ),
+                tooltip: _requestStatuses[userId] == 'sent'
+                    ? 'Request Sent'
+                    : 'Send Connection Request',
               ),
             )
           else

@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'connection_flow.dart';
 
-class ConnectionRequestsScreen extends StatelessWidget {
+class ConnectionRequestsScreen extends StatefulWidget {
   const ConnectionRequestsScreen({super.key});
 
+  @override
+  State<ConnectionRequestsScreen> createState() =>
+      _ConnectionRequestsScreenState();
+}
+
+class _ConnectionRequestsScreenState extends State<ConnectionRequestsScreen> {
   final String collectionName = 'connections';
   final Color themeColor = const Color(0xFF4CAFAB);
+  final Set<String> _processingRequestIds = {};
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +212,9 @@ class ConnectionRequestsScreen extends StatelessWidget {
                           phone: phone,
                           currentUserId: currentUser.uid,
                           otherUserId: otherUserId,
+                          isProcessing: _processingRequestIds.contains(
+                            otherUserId,
+                          ),
                         );
                       },
                     );
@@ -225,6 +236,7 @@ class ConnectionRequestsScreen extends StatelessWidget {
     required String phone,
     required String currentUserId,
     required String otherUserId,
+    required bool isProcessing,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -318,13 +330,21 @@ class ConnectionRequestsScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.check, color: themeColor, size: 20),
-                  onPressed: () => _acceptRequestWithConfirmation(
-                    context,
-                    currentUserId,
-                    otherUserId,
-                    name,
-                  ),
+                  icon: isProcessing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(Icons.check, color: themeColor, size: 20),
+                  onPressed: isProcessing
+                      ? null
+                      : () => _acceptRequestWithConfirmation(
+                          context,
+                          currentUserId,
+                          otherUserId,
+                          name,
+                        ),
                   padding: EdgeInsets.zero,
                 ),
               ),
@@ -339,13 +359,19 @@ class ConnectionRequestsScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.close, color: Colors.red, size: 20),
-                  onPressed: () => _rejectRequestWithConfirmation(
-                    context,
-                    currentUserId,
-                    otherUserId,
-                    name,
+                  icon: Icon(
+                    Icons.close,
+                    color: isProcessing ? Colors.grey : Colors.red,
+                    size: 20,
                   ),
+                  onPressed: isProcessing
+                      ? null
+                      : () => _rejectRequestWithConfirmation(
+                          context,
+                          currentUserId,
+                          otherUserId,
+                          name,
+                        ),
                   padding: EdgeInsets.zero,
                 ),
               ),
@@ -454,10 +480,13 @@ class ConnectionRequestsScreen extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              await acceptRequest(currentUserId, otherUserId);
-              _showSnackbar(context, '✅ Connected with $userName');
+              _runRequestAction(
+                otherUserId,
+                () => acceptRequest(currentUserId, otherUserId),
+                'Connected with $userName',
+              );
             },
             style: TextButton.styleFrom(foregroundColor: themeColor),
             child: const Text(
@@ -489,10 +518,13 @@ class ConnectionRequestsScreen extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              await rejectRequest(currentUserId, otherUserId);
-              _showSnackbar(context, '❌ Request from $userName declined');
+              _runRequestAction(
+                otherUserId,
+                () => rejectRequest(currentUserId, otherUserId),
+                'Request from $userName declined',
+              );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text(
@@ -505,11 +537,44 @@ class ConnectionRequestsScreen extends StatelessWidget {
     );
   }
 
-  void _showSnackbar(BuildContext context, String message) {
+  Future<void> _runRequestAction(
+    String otherUserId,
+    Future<void> Function() action,
+    String successMessage,
+  ) async {
+    try {
+      final completed = await runConnectionActionOnce(
+        _processingRequestIds,
+        otherUserId,
+        action,
+        onStateChanged: () {
+          if (mounted) setState(() {});
+        },
+      );
+      if (completed && mounted) {
+        _showSnackbar(context, successMessage);
+      }
+    } catch (e, st) {
+      debugPrint('Request action failed for $otherUserId: $e\n$st');
+      if (mounted) {
+        _showSnackbar(
+          context,
+          'Could not update request. Please try again.',
+          isError: true,
+        );
+      }
+    }
+  }
+
+  void _showSnackbar(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: themeColor,
+        backgroundColor: isError ? Colors.red.shade400 : themeColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -517,34 +582,46 @@ class ConnectionRequestsScreen extends StatelessWidget {
   }
 
   Future<void> acceptRequest(String currentUserId, String otherUserId) async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
-        .collection(collectionName)
-        .doc(otherUserId)
-        .update({'status': 'accepted'});
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(otherUserId)
-        .collection(collectionName)
-        .doc(currentUserId)
-        .update({'status': 'accepted'});
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+    batch.update(
+      firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection(collectionName)
+          .doc(otherUserId),
+      {'status': 'accepted'},
+    );
+    batch.update(
+      firestore
+          .collection('users')
+          .doc(otherUserId)
+          .collection(collectionName)
+          .doc(currentUserId),
+      {'status': 'accepted'},
+    );
+    await batch.commit();
   }
 
   Future<void> rejectRequest(String currentUserId, String otherUserId) async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
-        .collection(collectionName)
-        .doc(otherUserId)
-        .update({'status': 'rejected'});
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(otherUserId)
-        .collection(collectionName)
-        .doc(currentUserId)
-        .update({'status': 'rejected'});
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+    batch.update(
+      firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection(collectionName)
+          .doc(otherUserId),
+      {'status': 'rejected'},
+    );
+    batch.update(
+      firestore
+          .collection('users')
+          .doc(otherUserId)
+          .collection(collectionName)
+          .doc(currentUserId),
+      {'status': 'rejected'},
+    );
+    await batch.commit();
   }
 }

@@ -3,11 +3,12 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:huruchat/firebase_options.dart';
+import 'package:huruchat/screens/chat/chat_screen.dart';
+import 'notification_routing.dart';
 
 const AndroidNotificationChannel _chatMessagesChannel =
     AndroidNotificationChannel(
@@ -19,10 +20,11 @@ const AndroidNotificationChannel _chatMessagesChannel =
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await PushNotificationService.instance._initializeLocalNotifications();
-  await PushNotificationService.instance.showLocalNotification(message);
+  // FCM displays notification payloads in the background; don't show them locally.
 }
+
+final GlobalKey<NavigatorState> pushNotificationNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 class PushNotificationService {
   PushNotificationService._();
@@ -35,6 +37,7 @@ class PushNotificationService {
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
+  Map<String, dynamic>? _pendingNotificationTap;
   bool _initialized = false;
 
   Future<void> init() async {
@@ -45,9 +48,9 @@ class PushNotificationService {
     await _initializeLocalNotifications();
     await _requestPermissions();
     await _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
+      alert: false,
+      badge: false,
+      sound: false,
     );
 
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
@@ -103,9 +106,7 @@ class PushNotificationService {
   }
 
   Future<void> _initializeLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const androidSettings = AndroidInitializationSettings('@mipmap/huru');
     const iosSettings = DarwinInitializationSettings();
     const initSettings = InitializationSettings(
       android: androidSettings,
@@ -116,8 +117,14 @@ class PushNotificationService {
       initSettings,
       onDidReceiveNotificationResponse: (response) {
         if (response.payload == null || response.payload!.isEmpty) return;
-        final data = jsonDecode(response.payload!) as Map<String, dynamic>;
-        debugPrint('Notification tapped: $data');
+        try {
+          final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+          _handleNotificationTap(data);
+        } on FormatException catch (e) {
+          debugPrint('Invalid notification payload: $e');
+        } on TypeError catch (e) {
+          debugPrint('Invalid notification payload shape: $e');
+        }
       },
     );
 
@@ -133,7 +140,10 @@ class PushNotificationService {
       'Foreground push received: data=${message.data}, '
       'title=${message.notification?.title}, body=${message.notification?.body}',
     );
-    await showLocalNotification(message);
+    if (notificationDisplayOwnerFor(NotificationAppState.foreground) ==
+        NotificationDisplayOwner.local) {
+      await showLocalNotification(message);
+    }
   }
 
   Future<void> showLocalNotification(RemoteMessage message) async {
@@ -155,6 +165,7 @@ class PushNotificationService {
         android: AndroidNotificationDetails(
           _chatMessagesChannel.id,
           _chatMessagesChannel.name,
+          icon: 'huru',
           channelDescription: _chatMessagesChannel.description,
           importance: Importance.max,
           priority: Priority.high,
@@ -167,6 +178,44 @@ class PushNotificationService {
 
   void _handleMessageTap(RemoteMessage message) {
     debugPrint('Notification opened chat payload: ${message.data}');
+    _handleNotificationTap(message.data);
+  }
+
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    _pendingNotificationTap = data;
+    _openPendingNotificationTap();
+  }
+
+  void handlePendingNotificationTap() {
+    _openPendingNotificationTap();
+  }
+
+  void _openPendingNotificationTap() {
+    final data = _pendingNotificationTap;
+    if (data == null) return;
+
+    final target = resolveNotificationChatTarget(
+      data,
+      FirebaseAuth.instance.currentUser?.uid,
+    );
+    if (target == null) {
+      if (FirebaseAuth.instance.currentUser != null) {
+        debugPrint('Notification missing a valid conversation target');
+        _pendingNotificationTap = null;
+      }
+      return;
+    }
+
+    final navigator = pushNotificationNavigatorKey.currentState;
+    if (navigator == null) return;
+
+    _pendingNotificationTap = null;
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ChatScreen(chatId: target.chatId, userId: target.userId),
+      ),
+    );
   }
 
   Future<void> _saveTokenForCurrentUser(String token) async {

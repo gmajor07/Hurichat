@@ -1,10 +1,11 @@
 /// Product visibility only; backend authorization remains unchanged.
 abstract final class AppFeatures {
   static const messaging = true;
+  static const status = true;
   static const contacts = true;
   // No calling implementation or history exists yet; preserve chat buttons.
   static const calls = false;
-  static const services = false;
+  static const services = true;
   static const shopping = false;
   static const discover = false;
   static const profile = true;
@@ -12,8 +13,9 @@ abstract final class AppFeatures {
   // Original indices are retained for screen, icon, app bar and FAB selection.
   static List<int> get visibleNavigationIndices => [
     if (messaging) 0,
-    if (contacts) 5,
+    if (status) 6,
     if (services) 1,
+    if (contacts) 5,
     if (shopping) 2,
     if (discover) 3,
     if (profile) 4,

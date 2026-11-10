@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../chat/chat_screen.dart';
+import 'connection_flow.dart';
 
 class ConnectionScreen extends StatefulWidget {
   final bool contactsMode;
@@ -17,11 +18,15 @@ class _ConnectionScreenState extends State<ConnectionScreen>
   final currentUser = FirebaseAuth.instance.currentUser;
   final Color themeColor = const Color(0xFF4CAFAB);
   late TabController _tabController;
+  final TextEditingController _contactSearchController =
+      TextEditingController();
+  final Set<String> _processingConnectionIds = {};
   String _contactQuery = '';
 
   @override
   void dispose() {
     _tabController.dispose();
+    _contactSearchController.dispose();
     super.dispose();
   }
 
@@ -34,42 +39,75 @@ class _ConnectionScreenState extends State<ConnectionScreen>
   // ---------- 🔹 Firestore Actions ----------
   Future<void> _acceptRequest(String userId) async {
     final firestore = FirebaseFirestore.instance;
-
-    await firestore
-        .collection('users')
-        .doc(currentUser!.uid)
-        .collection('connections')
-        .doc(userId)
-        .set({'status': 'accepted', 'userId': userId});
-
-    await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('connections')
-        .doc(currentUser!.uid)
-        .set({'status': 'accepted', 'userId': currentUser!.uid});
-
-    _showSnackbar('✅ Connected with user');
+    await _runConnectionAction(userId, 'Connection accepted', () async {
+      final batch = firestore.batch();
+      batch.set(
+        firestore
+            .collection('users')
+            .doc(currentUser!.uid)
+            .collection('connections')
+            .doc(userId),
+        {'status': 'accepted', 'userId': userId},
+        SetOptions(merge: true),
+      );
+      batch.set(
+        firestore
+            .collection('users')
+            .doc(userId)
+            .collection('connections')
+            .doc(currentUser!.uid),
+        {'status': 'accepted', 'userId': currentUser!.uid},
+        SetOptions(merge: true),
+      );
+      await batch.commit();
+    });
   }
 
   Future<void> _rejectRequest(String userId) async {
     final firestore = FirebaseFirestore.instance;
+    await _runConnectionAction(userId, 'Request declined', () async {
+      final batch = firestore.batch();
+      batch.set(
+        firestore
+            .collection('users')
+            .doc(currentUser!.uid)
+            .collection('connections')
+            .doc(userId),
+        {'status': 'rejected', 'userId': userId},
+        SetOptions(merge: true),
+      );
+      batch.set(
+        firestore
+            .collection('users')
+            .doc(userId)
+            .collection('connections')
+            .doc(currentUser!.uid),
+        {'status': 'rejected', 'userId': currentUser!.uid},
+        SetOptions(merge: true),
+      );
+      await batch.commit();
+    });
+  }
 
-    await firestore
-        .collection('users')
-        .doc(currentUser!.uid)
-        .collection('connections')
-        .doc(userId)
-        .set({'status': 'rejected', 'userId': userId});
-
-    await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('connections')
-        .doc(currentUser!.uid)
-        .set({'status': 'rejected', 'userId': currentUser!.uid});
-
-    _showSnackbar('❌ Request declined');
+  Future<void> _runConnectionAction(
+    String userId,
+    String successMessage,
+    Future<void> Function() action,
+  ) async {
+    try {
+      final completed = await runConnectionActionOnce(
+        _processingConnectionIds,
+        userId,
+        action,
+        onStateChanged: () {
+          if (mounted) setState(() {});
+        },
+      );
+      if (completed && mounted) _showSnackbar(successMessage);
+    } catch (e, st) {
+      debugPrint('Connection action failed for $userId: $e\n$st');
+      if (mounted) _showSnackbar('Could not update connection. Please retry.');
+    }
   }
 
   Future<void> _cancelRequest(String userId) async {
@@ -146,15 +184,11 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           .get();
       if (doc.exists) {
         final data = doc.data()!;
-        return {
-          'name': data['name'] ?? 'Unknown User',
-          'photoUrl': data['photoUrl'] ?? null,
-          'phone': data['phone'] ?? '',
-        };
+        return contactProfileOrFallback(data);
       }
-      return {'name': 'Unknown User', 'photoUrl': null, 'phone': ''};
+      return contactProfileOrFallback(null);
     } catch (e) {
-      return {'name': 'Unknown User', 'photoUrl': null, 'phone': ''};
+      return contactProfileOrFallback(null);
     }
   }
 
@@ -364,8 +398,16 @@ class _ConnectionScreenState extends State<ConnectionScreen>
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: Icon(Icons.check, color: themeColor, size: 18),
-                onPressed: () => _acceptRequest(userId),
+                icon: _processingConnectionIds.contains(userId)
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(Icons.check, color: themeColor, size: 18),
+                onPressed: _processingConnectionIds.contains(userId)
+                    ? null
+                    : () => _acceptRequest(userId),
                 padding: EdgeInsets.zero,
               ),
             ),
@@ -379,7 +421,9 @@ class _ConnectionScreenState extends State<ConnectionScreen>
               ),
               child: IconButton(
                 icon: Icon(Icons.close, color: Colors.red, size: 18),
-                onPressed: () => _rejectRequest(userId),
+                onPressed: _processingConnectionIds.contains(userId)
+                    ? null
+                    : () => _rejectRequest(userId),
                 padding: EdgeInsets.zero,
               ),
             ),
@@ -465,14 +509,13 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final allConnections = snapshot.data!.docs;
-
-        // Filter connections by status in code
-        final connections = allConnections.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final status = data['status'] as String?;
-          return status == type;
-        }).toList();
+        final connections = filterConnectionsByStatus(
+          snapshot.data!.docs.map(
+            (doc) =>
+                ConnectionEntry(doc.id, doc.data() as Map<String, dynamic>),
+          ),
+          type,
+        );
 
         if (connections.isEmpty) {
           return Center(
@@ -508,10 +551,8 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           padding: const EdgeInsets.only(top: 16, bottom: 16),
           itemCount: connections.length,
           itemBuilder: (context, index) {
-            final doc = connections[index];
-            final data = doc.data() as Map<String, dynamic>;
-            final userId = doc.id;
-            return _buildConnectionCard(data, type, userId);
+            final entry = connections[index];
+            return _buildConnectionCard(entry.value, type, entry.key);
           },
         );
       },
@@ -580,14 +621,17 @@ class _ConnectionScreenState extends State<ConnectionScreen>
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final connections = snapshot.data!.docs
-            .where((doc) => doc.data()['status'] == 'accepted')
-            .toList();
+        final connections = filterConnectionsByStatus(
+          snapshot.data!.docs.map((doc) => ConnectionEntry(doc.id, doc.data())),
+          'accepted',
+        );
         if (connections.isEmpty) {
           return Center(child: Text(_getEmptyStateText('accepted')));
         }
         return FutureBuilder<List<Map<String, dynamic>>>(
-          future: Future.wait(connections.map((doc) => _getUserData(doc.id))),
+          future: Future.wait(
+            connections.map((entry) => _getUserData(entry.key)),
+          ),
           builder: (context, users) {
             if (!users.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -612,9 +656,9 @@ class _ConnectionScreenState extends State<ConnectionScreen>
               itemBuilder: (context, index) {
                 final i = matches[index];
                 return _buildConnectionCard(
-                  connections[i].data(),
+                  connections[i].value,
                   'accepted',
-                  connections[i].id,
+                  connections[i].key,
                   loadedUser: users.data![i],
                 );
               },
@@ -678,17 +722,86 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           ? Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: TextField(
-                    decoration: const InputDecoration(
-                      hintText: 'Search contacts...',
-                      prefixIcon: Icon(Icons.search),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.3 : 0.07,
+                          ),
+                          blurRadius: 14,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    onChanged: (value) => setState(
-                      () => _contactQuery = value.trim().toLowerCase(),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 16),
+                        Icon(
+                          Icons.search_rounded,
+                          size: 20,
+                          color: isDark ? Colors.white38 : Colors.grey.shade400,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _contactSearchController,
+                            onChanged: (value) => setState(
+                              () => _contactQuery = value.trim().toLowerCase(),
+                            ),
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.87)
+                                  : Colors.black87,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Search contacts...',
+                              hintStyle: TextStyle(
+                                color: isDark
+                                    ? Colors.white38
+                                    : Colors.grey.shade400,
+                                fontSize: 14.5,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_contactQuery.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              _contactSearchController.clear();
+                              setState(() => _contactQuery = '');
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: Icon(
+                                Icons.cancel_rounded,
+                                size: 18,
+                                color: isDark
+                                    ? Colors.white38
+                                    : Colors.grey.shade400,
+                              ),
+                            ),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.only(right: 14),
+                            child: Icon(
+                              Icons.mic_none_rounded,
+                              size: 20,
+                              color: isDark
+                                  ? Colors.white38
+                                  : Colors.grey.shade400,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

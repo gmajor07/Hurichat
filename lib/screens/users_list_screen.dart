@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import 'chat/conversation_draft.dart';
+import 'chat/conversation_inbox.dart';
 import 'chat/chat_screen.dart';
+import 'chat/message_read_state.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -15,21 +19,48 @@ class UsersListScreen extends StatefulWidget {
 class _UsersListScreenState extends State<UsersListScreen> {
   final currentUser = FirebaseAuth.instance.currentUser;
   final TextEditingController _searchController = TextEditingController();
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _usersStream =
+      FirebaseFirestore.instance.collection('users').snapshots();
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _chatsStream =
+      FirebaseFirestore.instance
+          .collection('chats')
+          .where('members', arrayContains: currentUser!.uid)
+          .snapshots();
+  late final ConversationUnreadCounts _unreadCounts = ConversationUnreadCounts(
+    streamForChat: _unreadCountStream,
+  );
+  ConversationInboxFilter _selectedFilter = ConversationInboxFilter.all;
   String searchQuery = '';
   bool _isSelectionMode = false;
   final Set<String> _selectedUserIds = {};
+
+  Stream<int> _unreadCountStream(String chatId) {
+    return FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .where('isRead', isEqualTo: false)
+        .where('receiverId', isEqualTo: currentUser!.uid)
+        .snapshots()
+        .map(
+          (snapshot) => countUnreadIncomingMessages(
+            snapshot.docs.map(
+              (doc) => Map<String, dynamic>.from(doc.data() as Map),
+            ),
+            currentUser!.uid,
+          ),
+        );
+  }
+
+  void _onUnreadCountsChanged() {
+    if (mounted) setState(() {});
+  }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   String generateChatId(String uid1, String uid2) {
     final ids = [uid1, uid2]..sort();
     return ids.join('_');
-  }
-
-  int _extractTimestamp(dynamic timestamp) {
-    if (timestamp is Timestamp) return timestamp.millisecondsSinceEpoch;
-    if (timestamp is int) return timestamp;
-    return 0;
   }
 
   String capitalize(String name) {
@@ -55,7 +86,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUser!.uid)
-          .update({'chatHistory': FieldValue.arrayRemove([userId])})
+          .update({
+            'chatHistory': FieldValue.arrayRemove([userId]),
+          })
           .catchError((_) {});
       if (mounted) {
         _showSnack('Chat removed');
@@ -70,7 +103,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUser!.uid)
-          .update({'blockedUsers': FieldValue.arrayUnion([userId])});
+          .update({
+            'blockedUsers': FieldValue.arrayUnion([userId]),
+          });
       if (mounted) _showSnack('User blocked');
     } catch (_) {
       if (mounted) _showSnack('Failed to block user');
@@ -83,10 +118,10 @@ class _UsersListScreenState extends State<UsersListScreen> {
           .collection('users')
           .doc(currentUser!.uid)
           .update({
-        'pinnedChats': isPinned
-            ? FieldValue.arrayRemove([userId])
-            : FieldValue.arrayUnion([userId]),
-      });
+            'pinnedChats': isPinned
+                ? FieldValue.arrayRemove([userId])
+                : FieldValue.arrayUnion([userId]),
+          });
       if (mounted) {
         _showSnack(isPinned ? 'Chat unpinned' : 'Chat pinned');
       }
@@ -98,23 +133,23 @@ class _UsersListScreenState extends State<UsersListScreen> {
   void _enterSelectionMode() => setState(() => _isSelectionMode = true);
 
   void _exitSelectionMode() => setState(() {
-        _isSelectionMode = false;
-        _selectedUserIds.clear();
-      });
+    _isSelectionMode = false;
+    _selectedUserIds.clear();
+  });
 
   void _toggleSelection(String userId) => setState(() {
-        if (_selectedUserIds.contains(userId)) {
-          _selectedUserIds.remove(userId);
-        } else {
-          _selectedUserIds.add(userId);
-        }
-      });
+    if (_selectedUserIds.contains(userId)) {
+      _selectedUserIds.remove(userId);
+    } else {
+      _selectedUserIds.add(userId);
+    }
+  });
 
   void _selectAll(List<String> userIds) => setState(() {
-        _selectedUserIds
-          ..clear()
-          ..addAll(userIds);
-      });
+    _selectedUserIds
+      ..clear()
+      ..addAll(userIds);
+  });
 
   Future<void> _deleteSelectedConnections() async {
     try {
@@ -122,7 +157,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser!.uid)
-            .update({'chatHistory': FieldValue.arrayRemove([userId])})
+            .update({
+              'chatHistory': FieldValue.arrayRemove([userId]),
+            })
             .catchError((_) {});
       }
       setState(() {
@@ -135,34 +172,27 @@ class _UsersListScreenState extends State<UsersListScreen> {
     }
   }
 
-  Future<void> markMessagesAsRead(
-      String chatId, String currentUserId) async {
-    final unreadSnapshot = await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .where('isRead', isEqualTo: false)
-        .where('receiverId', isEqualTo: currentUserId)
-        .get();
-    for (var doc in unreadSnapshot.docs) {
-      doc.reference.update({'isRead': true});
-    }
-  }
-
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: const Color(0xFF3D8A84),
       ),
     );
   }
 
   @override
+  void initState() {
+    super.initState();
+    _unreadCounts.addListener(_onUnreadCountsChanged);
+  }
+
+  @override
   void dispose() {
+    _unreadCounts.removeListener(_onUnreadCountsChanged);
+    _unreadCounts.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -173,8 +203,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
   Widget build(BuildContext context) {
     if (currentUser == null) {
       return const Center(
-        child: Text('Not logged in',
-            style: TextStyle(color: Colors.red)),
+        child: Text('Not logged in', style: TextStyle(color: Colors.red)),
       );
     }
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -196,265 +225,246 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
         // ── Chat list ────────────────────────────────────────────────────
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance.collection('users').snapshots(),
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _usersStream,
             builder: (context, usersSnapshot) {
               if (!usersSnapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              return StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('chats')
-                    .where('members', arrayContains: currentUser!.uid)
-                    .snapshots(),
-                builder: (context, chatsSnapshot) {
-                  if (!chatsSnapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+              return ValueListenableBuilder<Box>(
+                valueListenable: Hive.box('drafts').listenable(),
+                builder: (context, draftsBox, _) {
+                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _chatsStream,
+                    builder: (context, chatsSnapshot) {
+                      if (!chatsSnapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final chatDocs = chatsSnapshot.data!.docs;
+                      _unreadCounts.watch(chatDocs.map((doc) => doc.id));
+                      final draftValues = <String, String>{};
+                      for (final doc in chatDocs) {
+                        final key = conversationDraftKey(
+                          accountId: currentUser!.uid,
+                          chatId: doc.id,
+                        );
+                        final value = draftsBox.get(key);
+                        if (value is String && value.trim().isNotEmpty) {
+                          draftValues[key] = value;
+                        }
+                      }
 
-                  // Build chat metadata map
-                  final chatMetaByUserId = <String, Map<String, dynamic>>{};
-                  for (final doc in chatsSnapshot.data!.docs) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final members =
-                        List<String>.from(data['members'] ?? []);
-                    final otherUserId = members.firstWhere(
-                      (id) => id != currentUser!.uid,
-                      orElse: () => '',
-                    );
-                    if (otherUserId.isEmpty) continue;
-                    chatMetaByUserId[otherUserId] = {
-                      'lastMessage':
-                          (data['lastMessage'] ?? '').toString(),
-                      'lastTimestamp': _extractTimestamp(
-                        data['last_message_timestamp'] ??
-                            data['lastTimestamp'] ??
-                            data['timestamp'],
-                      ),
-                    };
-                  }
+                      // Collect pinned chat IDs
+                      final pinnedUserIds = <String>{};
+                      for (final doc in usersSnapshot.data!.docs) {
+                        if (doc.id != currentUser!.uid) continue;
+                        final data = doc.data();
+                        final raw =
+                            (data['pinnedChats'] as List<dynamic>?) ?? [];
+                        pinnedUserIds.addAll(raw.map((id) => id.toString()));
+                        break;
+                      }
 
-                  final allUsers = usersSnapshot.data!.docs
-                      .where((doc) => doc.id != currentUser!.uid)
-                      .toList();
+                      final profiles = {
+                        for (final doc in usersSnapshot.data!.docs)
+                          doc.id: doc.data(),
+                      };
+                      final allChatItems =
+                          buildConversationInboxItems(
+                            currentUserId: currentUser!.uid,
+                            chats: chatsSnapshot.data!.docs.map(
+                              (doc) => MapEntry(
+                                doc.id,
+                                doc.data(),
+                              ),
+                            ),
+                            profiles: profiles,
+                            pinnedUserIds: pinnedUserIds,
+                            drafts: draftValues,
+                          ).where((item) {
+                            if (searchQuery.isEmpty) return true;
+                            return (item['name'] as String)
+                                .toLowerCase()
+                                .contains(searchQuery);
+                          }).toList();
+                      // Sort: pinned first, then by timestamp, then name
+                      allChatItems.sort((a, b) {
+                        final bool pA = (a['isPinned'] as bool?) ?? false;
+                        final bool pB = (b['isPinned'] as bool?) ?? false;
+                        if (pA != pB) return pB ? 1 : -1;
+                        final tsA = (a['lastTimestamp'] as int?) ?? 0;
+                        final tsB = (b['lastTimestamp'] as int?) ?? 0;
+                        final byTime = tsB.compareTo(tsA);
+                        if (byTime != 0) return byTime;
+                        return (a['name'] as String).compareTo(
+                          b['name'] as String,
+                        );
+                      });
+                      final chatItems = filterConversationInboxItems(
+                        items: allChatItems,
+                        filter: _selectedFilter,
+                        unreadCounts: _unreadCounts.counts,
+                      );
+                      final userIds = chatItems
+                          .map((item) => item['userId'] as String)
+                          .toList();
 
-                  final filteredUsers = allUsers.where((doc) {
-                    if (searchQuery.isEmpty) return true;
-                    final data = doc.data() as Map<String, dynamic>;
-                    final name =
-                        (data['name'] ?? '').toString().toLowerCase();
-                    return name.contains(searchQuery);
-                  }).toList();
-
-                  if (filteredUsers.isEmpty) {
-                    return _EmptyState(searchQuery: searchQuery);
-                  }
-
-                  // Collect pinned chat IDs
-                  final pinnedUserIds = <String>{};
-                  for (final doc in usersSnapshot.data!.docs) {
-                    if (doc.id != currentUser!.uid) continue;
-                    final data = doc.data() as Map<String, dynamic>;
-                    final raw =
-                        (data['pinnedChats'] as List<dynamic>?) ?? [];
-                    pinnedUserIds
-                        .addAll(raw.map((id) => id.toString()));
-                    break;
-                  }
-
-                  // Build chat items
-                  final userIds = <String>[];
-                  final chatItems = <Map<String, dynamic>>[];
-
-                  for (final userDoc in filteredUsers) {
-                    final userData =
-                        userDoc.data() as Map<String, dynamic>;
-                    final userId = userDoc.id;
-                    final metadata = chatMetaByUserId[userId] ?? {};
-                    final name = capitalize(
-                        userData['name'] as String? ?? 'Unknown');
-                    final photoUrl =
-                        userData['photoUrl'] as String? ?? '';
-                    final userStatus =
-                        userData['status'] as String? ?? 'offline';
-                    final chatId =
-                        generateChatId(currentUser!.uid, userId);
-                    final lastMessage =
-                        (metadata['lastMessage'] ?? '').toString();
-                    final lastTimestamp =
-                        (metadata['lastTimestamp'] as int?) ?? 0;
-
-                    userIds.add(userId);
-                    chatItems.add({
-                      'userId': userId,
-                      'name': name,
-                      'photoUrl': photoUrl,
-                      'status': userStatus,
-                      'chatId': chatId,
-                      'lastMessage': lastMessage.isEmpty
-                          ? 'No messages yet'
-                          : lastMessage,
-                      'lastTimestamp': lastTimestamp,
-                      'isPinned': pinnedUserIds.contains(userId),
-                    });
-                  }
-
-                  // Sort: pinned first, then by timestamp, then name
-                  chatItems.sort((a, b) {
-                    final bool pA = (a['isPinned'] as bool?) ?? false;
-                    final bool pB = (b['isPinned'] as bool?) ?? false;
-                    if (pA != pB) return pB ? 1 : -1;
-                    final tsA = (a['lastTimestamp'] as int?) ?? 0;
-                    final tsB = (b['lastTimestamp'] as int?) ?? 0;
-                    final byTime = tsB.compareTo(tsA);
-                    if (byTime != 0) return byTime;
-                    return (a['name'] as String)
-                        .compareTo(b['name'] as String);
-                  });
-
-                  return Stack(
-                    children: [
-                      ListView.builder(
-                        itemCount: chatItems.length + 1,
-                        itemBuilder: (context, index) {
-                          // ── index 0 = stories + section header ──
-                          if (index == 0) {
-                            final stories =
-                                chatItems.take(8).toList();
-                            return Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                // Stories row
-                                if (stories.isNotEmpty) ...[
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        16, 8, 16, 0),
-                                    child: Text(
-                                      'Active Now',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.4,
-                                        color: isDark
-                                            ? Colors.white38
-                                            : Colors.grey.shade500,
+                      return Stack(
+                        children: [
+                          ListView.builder(
+                            itemCount:
+                                chatItems.length +
+                                1 +
+                                (chatItems.isEmpty ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              // ── index 0 = stories + section header ──
+                              if (index == 0) {
+                                final stories = chatItems.take(8).toList();
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Stories row
+                                    if (stories.isNotEmpty) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          16,
+                                          8,
+                                          16,
+                                          0,
+                                        ),
+                                        child: Text(
+                                          'Active Now',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.4,
+                                            color: isDark
+                                                ? Colors.white38
+                                                : Colors.grey.shade500,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: 108,
-                                    child: ListView.separated(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: stories.length,
-                                      separatorBuilder: (_, __) =>
-                                          const SizedBox(width: 8),
-                                      itemBuilder: (_, i) {
-                                        final s = stories[i];
-                                        final storyUserId =
-                                            s['userId'] as String;
-                                        final storyChatId =
-                                            s['chatId'] as String;
-                                        final photo =
-                                            s['photoUrl'] as String;
-                                        final name =
-                                            s['name'] as String;
-                                        final status =
-                                            s['status'] as String;
-                                        final bool online =
-                                            status == 'online' ||
+                                      SizedBox(
+                                        height: 108,
+                                        child: ListView.separated(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: stories.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(width: 8),
+                                          itemBuilder: (_, i) {
+                                            final s = stories[i];
+                                            final storyUserId =
+                                                s['userId'] as String;
+                                            final storyChatId =
+                                                s['chatId'] as String;
+                                            final photo =
+                                                s['photoUrl'] as String;
+                                            final name = s['name'] as String;
+                                            final status =
+                                                s['status'] as String;
+                                            final bool online =
+                                                status == 'online' ||
                                                 status == 'active' ||
                                                 status == 'available';
-                                        return _StoryAvatar(
-                                          photo: photo,
-                                          name: name,
-                                          online: online,
-                                          isDark: isDark,
-                                          onTap: () async {
-                                            await markMessagesAsRead(
-                                              storyChatId,
-                                              currentUser!.uid,
-                                            );
-                                            if (!context.mounted) return;
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    ChatScreen(
-                                                  chatId: storyChatId,
-                                                  userId: storyUserId,
-                                                ),
-                                              ),
+                                            return _StoryAvatar(
+                                              photo: photo,
+                                              name: name,
+                                              online: online,
+                                              isDark: isDark,
+                                              onTap: () async {
+                                                if (!context.mounted) return;
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => ChatScreen(
+                                                      chatId: storyChatId,
+                                                      userId: storyUserId,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
                                             );
                                           },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                                // Messages section header
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      16, 4, 16, 6),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        'Messages',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black87,
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
+                                    // Messages section header
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        4,
+                                        16,
+                                        6,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            'Messages',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        0,
+                                        16,
+                                        10,
+                                      ),
+                                      child: _InboxFilterChips(
+                                        selectedFilter: _selectedFilter,
+                                        isDark: isDark,
+                                        onSelected: (filter) => setState(
+                                          () => _selectedFilter = filter,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
 
-                          // ── Chat tile ────────────────────────────
-                          final item = chatItems[index - 1];
-                          final userId = item['userId'] as String;
-                          final chatId = item['chatId'] as String;
-                          final userName = item['name'] as String;
-                          final photoUrl = item['photoUrl'] as String;
-                          final status = item['status'] as String;
-                          final lastMessage =
-                              item['lastMessage'] as String;
-                          final lastTimestamp =
-                              item['lastTimestamp'] as int;
-                          final isPinned = item['isPinned'] as bool;
-                          final formattedTime =
-                              _formatTime(lastTimestamp);
-                          final isOnline = status == 'online' ||
-                              status == 'active' ||
-                              status == 'available';
+                              if (chatItems.isEmpty) {
+                                return _InboxFilterEmptyState(
+                                  filter: _selectedFilter,
+                                  searchQuery: searchQuery,
+                                );
+                              }
 
-                          return StreamBuilder<int>(
-                            stream: FirebaseFirestore.instance
-                                .collection('chats')
-                                .doc(chatId)
-                                .collection('messages')
-                                .where('isRead', isEqualTo: false)
-                                .where('receiverId',
-                                    isEqualTo: currentUser!.uid)
-                                .snapshots()
-                                .map((s) => s.docs.length),
-                            builder: (context, unreadSnapshot) {
-                              final unreadCount =
-                                  unreadSnapshot.data ?? 0;
-                              final isSelected =
-                                  _selectedUserIds.contains(userId);
+                              // ── Chat tile ────────────────────────────
+                              final item = chatItems[index - 1];
+                              final userId = item['userId'] as String;
+                              final chatId = item['chatId'] as String;
+                              final userName = item['name'] as String;
+                              final photoUrl = item['photoUrl'] as String;
+                              final status = item['status'] as String;
+                              final lastMessage = item['lastMessage'] as String;
+                              final lastTimestamp =
+                                  item['lastTimestamp'] as int;
+                              final isPinned = item['isPinned'] as bool;
+                              final formattedTime = _formatTime(lastTimestamp);
+                              final isOnline =
+                                  status == 'online' ||
+                                  status == 'active' ||
+                                  status == 'available';
+
+                              final unreadCount = _unreadCounts.countFor(
+                                chatId,
+                              );
+                              final isSelected = _selectedUserIds.contains(
+                                userId,
+                              );
 
                               return _ChatTile(
                                 userId: userId,
@@ -462,6 +472,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                 photoUrl: photoUrl,
                                 isOnline: isOnline,
                                 lastMessage: lastMessage,
+                                isDraft: item['isDraft'] == true,
                                 formattedTime: formattedTime,
                                 unreadCount: unreadCount,
                                 isPinned: isPinned,
@@ -471,10 +482,6 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                 onTap: _isSelectionMode
                                     ? () => _toggleSelection(userId)
                                     : () async {
-                                        await markMessagesAsRead(
-                                          chatId,
-                                          currentUser!.uid,
-                                        );
                                         if (!context.mounted) return;
                                         Navigator.push(
                                           context,
@@ -489,32 +496,31 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                 onLongPress: _isSelectionMode
                                     ? null
                                     : () => _showChatOptions(
-                                          context,
-                                          userId: userId,
-                                          userName: userName,
-                                          isPinned: isPinned,
-                                          isDark: isDark,
-                                        ),
-                                onCheckboxTap: () =>
-                                    _toggleSelection(userId),
+                                        context,
+                                        userId: userId,
+                                        userName: userName,
+                                        isPinned: isPinned,
+                                        isDark: isDark,
+                                      ),
+                                onCheckboxTap: () => _toggleSelection(userId),
                               );
                             },
-                          );
-                        },
-                      ),
+                          ),
 
-                      // ── Floating selection action bar ────────────
-                      if (_isSelectionMode)
-                        _SelectionBar(
-                          selectedCount: _selectedUserIds.length,
-                          isDark: isDark,
-                          onSelectAll: () => _selectAll(userIds),
-                          onDelete: _selectedUserIds.isEmpty
-                              ? null
-                              : _deleteSelectedConnections,
-                          onCancel: _exitSelectionMode,
-                        ),
-                    ],
+                          // ── Floating selection action bar ────────────
+                          if (_isSelectionMode)
+                            _SelectionBar(
+                              selectedCount: _selectedUserIds.length,
+                              isDark: isDark,
+                              onSelectAll: () => _selectAll(userIds),
+                              onDelete: _selectedUserIds.isEmpty
+                                  ? null
+                                  : _deleteSelectedConnections,
+                              onCancel: _exitSelectionMode,
+                            ),
+                        ],
+                      );
+                    },
                   );
                 },
               );
@@ -538,16 +544,14 @@ class _UsersListScreenState extends State<UsersListScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
-        final sheetDark =
-            Theme.of(sheetCtx).brightness == Brightness.dark;
+        final sheetDark = Theme.of(sheetCtx).brightness == Brightness.dark;
         return SafeArea(
           child: Container(
             decoration: BoxDecoration(
-              color: sheetDark
-                  ? const Color(0xFF1E1E1E)
-                  : Colors.white,
+              color: sheetDark ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(28)),
+                top: Radius.circular(28),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -558,9 +562,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                   height: 4,
                   margin: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: sheetDark
-                        ? Colors.white24
-                        : Colors.grey.shade300,
+                    color: sheetDark ? Colors.white24 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -572,17 +574,13 @@ class _UsersListScreenState extends State<UsersListScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: sheetDark
-                          ? Colors.white
-                          : Colors.black87,
+                      color: sheetDark ? Colors.white : Colors.black87,
                     ),
                   ),
                 ),
                 Divider(
                   height: 1,
-                  color: sheetDark
-                      ? Colors.white12
-                      : Colors.grey.shade200,
+                  color: sheetDark ? Colors.white12 : Colors.grey.shade200,
                 ),
                 _SheetOpt(
                   icon: isPinned
@@ -666,8 +664,7 @@ class _ModernSearchBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withValues(alpha: isDark ? 0.3 : 0.07),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.07),
             blurRadius: 14,
             offset: const Offset(0, 3),
           ),
@@ -676,9 +673,11 @@ class _ModernSearchBar extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 16),
-          Icon(Icons.search_rounded,
-              size: 20,
-              color: isDark ? Colors.white38 : Colors.grey.shade400),
+          Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: isDark ? Colors.white38 : Colors.grey.shade400,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -686,18 +685,18 @@ class _ModernSearchBar extends StatelessWidget {
               onChanged: onChanged,
               style: TextStyle(
                 fontSize: 14.5,
-                color: isDark ? Colors.white.withValues(alpha: 0.87) : Colors.black87,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.87)
+                    : Colors.black87,
               ),
               decoration: InputDecoration(
                 hintText: 'Search conversations...',
                 hintStyle: TextStyle(
-                  color:
-                      isDark ? Colors.white38 : Colors.grey.shade400,
+                  color: isDark ? Colors.white38 : Colors.grey.shade400,
                   fontSize: 14.5,
                 ),
                 border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ),
@@ -706,20 +705,21 @@ class _ModernSearchBar extends StatelessWidget {
               onTap: onClear,
               child: Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: Icon(Icons.cancel_rounded,
-                    size: 18,
-                    color: isDark
-                        ? Colors.white38
-                        : Colors.grey.shade400),
+                child: Icon(
+                  Icons.cancel_rounded,
+                  size: 18,
+                  color: isDark ? Colors.white38 : Colors.grey.shade400,
+                ),
               ),
             )
           else
             Padding(
               padding: const EdgeInsets.only(right: 14),
-              child: Icon(Icons.mic_none_rounded,
-                  size: 20,
-                  color:
-                      isDark ? Colors.white38 : Colors.grey.shade400),
+              child: Icon(
+                Icons.mic_none_rounded,
+                size: 20,
+                color: isDark ? Colors.white38 : Colors.grey.shade400,
+              ),
             ),
         ],
       ),
@@ -771,12 +771,10 @@ class _StoryAvatar extends StatelessWidget {
               ),
               child: CircleAvatar(
                 radius: 24,
-                backgroundImage:
-                    photo.isNotEmpty ? NetworkImage(photo) : null,
+                backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
                 backgroundColor: Colors.grey.shade400,
                 child: photo.isEmpty
-                    ? const Icon(Icons.person,
-                        color: Colors.white, size: 22)
+                    ? const Icon(Icons.person, color: Colors.white, size: 22)
                     : null,
               ),
             ),
@@ -809,6 +807,7 @@ class _ChatTile extends StatelessWidget {
   final String photoUrl;
   final bool isOnline;
   final String lastMessage;
+  final bool isDraft;
   final String formattedTime;
   final int unreadCount;
   final bool isPinned;
@@ -825,6 +824,7 @@ class _ChatTile extends StatelessWidget {
     required this.photoUrl,
     required this.isOnline,
     required this.lastMessage,
+    this.isDraft = false,
     required this.formattedTime,
     required this.unreadCount,
     required this.isPinned,
@@ -850,8 +850,7 @@ class _ChatTile extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLongPress,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 8, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
             child: Row(
               children: [
                 // Selection checkbox / avatar
@@ -876,8 +875,11 @@ class _ChatTile extends StatelessWidget {
                         ),
                       ),
                       child: isSelected
-                          ? const Icon(Icons.check,
-                              color: Colors.white, size: 14)
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 14,
+                            )
                           : null,
                     ),
                   )
@@ -892,9 +894,7 @@ class _ChatTile extends StatelessWidget {
                             : null,
                         backgroundColor: Colors.grey.shade300,
                         child: photoUrl.isEmpty
-                            ? Icon(Icons.person,
-                                color: Colors.white,
-                                size: 26)
+                            ? Icon(Icons.person, color: Colors.white, size: 26)
                             : null,
                       ),
                       if (isOnline)
@@ -938,9 +938,7 @@ class _ChatTile extends StatelessWidget {
                                     ? FontWeight.w700
                                     : FontWeight.w600,
                                 fontSize: 15.5,
-                                color: isDark
-                                    ? Colors.white
-                                    : Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                           ),
@@ -965,8 +963,8 @@ class _ChatTile extends StatelessWidget {
                                 color: unreadCount > 0
                                     ? const Color(0xFF4CAFaa)
                                     : (isDark
-                                        ? Colors.white38
-                                        : Colors.grey.shade500),
+                                          ? Colors.white38
+                                          : Colors.grey.shade500),
                               ),
                             ),
                           ],
@@ -985,13 +983,15 @@ class _ChatTile extends StatelessWidget {
                                 fontWeight: unreadCount > 0
                                     ? FontWeight.w500
                                     : FontWeight.normal,
-                                color: isDark
+                                color: isDraft
+                                    ? const Color(0xFF3D8A84)
+                                    : isDark
                                     ? (unreadCount > 0
-                                        ? Colors.white60
-                                        : Colors.white38)
+                                          ? Colors.white60
+                                          : Colors.white38)
                                     : (unreadCount > 0
-                                        ? Colors.black54
-                                        : Colors.grey.shade500),
+                                          ? Colors.black54
+                                          : Colors.grey.shade500),
                               ),
                             ),
                           ),
@@ -999,11 +999,12 @@ class _ChatTile extends StatelessWidget {
                             Container(
                               margin: const EdgeInsets.only(left: 6),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2.5),
+                                horizontal: 7,
+                                vertical: 2.5,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF4CAFaa),
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 unreadCount > 99
@@ -1030,51 +1031,94 @@ class _ChatTile extends StatelessWidget {
   }
 }
 
-/// Empty state widget
-class _EmptyState extends StatelessWidget {
-  final String searchQuery;
-  const _EmptyState({required this.searchQuery});
+class _InboxFilterChips extends StatelessWidget {
+  final ConversationInboxFilter selectedFilter;
+  final bool isDark;
+  final ValueChanged<ConversationInboxFilter> onSelected;
+
+  const _InboxFilterChips({
+    required this.selectedFilter,
+    required this.isDark,
+    required this.onSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    const filters = [
+      (filter: ConversationInboxFilter.all, label: 'All'),
+      (filter: ConversationInboxFilter.unread, label: 'Unread'),
+      (filter: ConversationInboxFilter.drafts, label: 'Drafts'),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
         children: [
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAFaa).withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person_search_rounded,
-              size: 42,
-              color: Color(0xFF4CAFaa),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            searchQuery.isEmpty ? 'No users available' : 'No users found',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white54 : Colors.black54,
-            ),
-          ),
-          if (searchQuery.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Try a different search term',
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? Colors.white30 : Colors.grey.shade400,
+          for (final option in filters) ...[
+            if (option != filters.first) const SizedBox(width: 8),
+            ChoiceChip(
+              key: ValueKey('inbox-filter-${option.label.toLowerCase()}'),
+              label: Text(option.label),
+              selected: selectedFilter == option.filter,
+              onSelected: (_) => onSelected(option.filter),
+              selectedColor: const Color(0xFF4CAFaa).withValues(alpha: 0.18),
+              backgroundColor: isDark
+                  ? const Color(0xFF1E1E1E)
+                  : Colors.grey.shade100,
+              labelStyle: TextStyle(
+                color: selectedFilter == option.filter
+                    ? const Color(0xFF3D8A84)
+                    : isDark
+                    ? Colors.white70
+                    : Colors.black54,
+                fontWeight: selectedFilter == option.filter
+                    ? FontWeight.w600
+                    : FontWeight.normal,
               ),
+              side: BorderSide(
+                color: selectedFilter == option.filter
+                    ? const Color(0xFF4CAFaa)
+                    : Colors.transparent,
+              ),
+              showCheckmark: false,
+              visualDensity: VisualDensity.compact,
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _InboxFilterEmptyState extends StatelessWidget {
+  final ConversationInboxFilter filter;
+  final String searchQuery;
+
+  const _InboxFilterEmptyState({
+    required this.filter,
+    required this.searchQuery,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final message = searchQuery.isNotEmpty
+        ? 'No conversations match your search.'
+        : switch (filter) {
+            ConversationInboxFilter.all => 'No conversations yet.',
+            ConversationInboxFilter.unread =>
+              'You have no unread conversations.',
+            ConversationInboxFilter.drafts => 'You have no saved drafts.',
+          };
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
@@ -1103,8 +1147,7 @@ class _SelectionBar extends StatelessWidget {
       left: 16,
       right: 16,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -1128,7 +1171,8 @@ class _SelectionBar extends StatelessWidget {
                   side: const BorderSide(color: Color(0xFF4CAFaa)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
@@ -1136,11 +1180,10 @@ class _SelectionBar extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline_rounded,
-                    size: 17),
-                label: Text(selectedCount > 0
-                    ? 'Remove ($selectedCount)'
-                    : 'Remove'),
+                icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                label: Text(
+                  selectedCount > 0 ? 'Remove ($selectedCount)' : 'Remove',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade400,
                   foregroundColor: Colors.white,
@@ -1148,25 +1191,22 @@ class _SelectionBar extends StatelessWidget {
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             Container(
               decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white12
-                    : Colors.grey.shade100,
+                color: isDark ? Colors.white12 : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: IconButton(
                 onPressed: onCancel,
                 icon: Icon(
                   Icons.close_rounded,
-                  color: isDark
-                      ? Colors.white54
-                      : Colors.grey.shade600,
+                  color: isDark ? Colors.white54 : Colors.grey.shade600,
                 ),
               ),
             ),
@@ -1196,8 +1236,7 @@ class _SheetOpt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
       leading: Container(
         width: 40,
         height: 40,

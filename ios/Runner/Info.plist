@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSContactsUsageDescription</key>
 	<string>Huruchat uses your contacts to find registered users you may know.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Huruchat uses your microphone when you record a voice message.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Huruchat uses your location to show your pickup point and nearby routes on the map.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

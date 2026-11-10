@@ -3,10 +3,45 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:huruchat/config/app_features.dart';
 import 'package:huruchat/config/feature_routes.dart';
 import 'package:huruchat/screens/home/home_bottom_nav.dart';
+import 'package:huruchat/screens/home/home_fab.dart';
 import 'package:huruchat/screens/huru/huru_screen.dart';
 import 'package:huruchat/screens/profile/profile_actions.dart';
+import 'package:huruchat/screens/connection/discovery_connection_screen.dart';
+import 'package:huruchat/screens/chat/presence_service.dart';
 
 void main() {
+  test('hidden lifecycle state marks presence offline without throwing', () {
+    var offlineCalls = 0;
+    dispatchPresenceLifecycleState(
+      AppLifecycleState.hidden,
+      onResumed: () {},
+      onOffline: () => offlineCalls++,
+    );
+
+    expect(offlineCalls, 1);
+  });
+
+  testWidgets('Contacts exposes the existing Discover destination', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            floatingActionButton: buildFAB(
+              currentIndex: 5,
+              themeColor: const Color(0xFF4CAFAB),
+              context: context,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byTooltip('Discover people'), findsOneWidget);
+    expect(buildDiscoveryScreen(), isA<ConnectionsDiscoveryScreen>());
+  });
+
   test(
     'functional messaging tabs are enabled; calls and commerce stay disabled',
     () {
