@@ -3,6 +3,66 @@ const functions = require("firebase-functions");
 
 admin.initializeApp();
 
+exports.discoverUsers = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Sign in to discover Huruchat users.",
+    );
+  }
+
+  const requestedPageSize = Number(data && data.pageSize);
+  const pageSize = Number.isInteger(requestedPageSize) ?
+    Math.min(Math.max(requestedPageSize, 1), 50) :
+    40;
+  const usersRef = admin.firestore().collection("users");
+  let query = usersRef
+      .where("profileCompleted", "==", true)
+      .limit(pageSize + 1);
+
+  const cursor = data && data.cursor;
+  if (cursor != null) {
+    if (typeof cursor !== "string" || cursor.length === 0 || cursor.length > 128) {
+      throw new functions.https.HttpsError(
+          "invalid-argument",
+          "The discovery cursor is invalid.",
+      );
+    }
+
+    const cursorSnapshot = await usersRef.doc(cursor).get();
+    if (!cursorSnapshot.exists) {
+      throw new functions.https.HttpsError(
+          "invalid-argument",
+          "The discovery cursor is no longer available.",
+      );
+    }
+    query = query.startAfter(cursorSnapshot);
+  }
+
+  const snapshot = await query.get();
+  const hasMore = snapshot.docs.length > pageSize;
+  const page = snapshot.docs.slice(0, pageSize);
+
+  return {
+    users: page
+        .filter((user) => user.id !== context.auth.uid)
+        .map((user) => {
+          const profile = user.data();
+          return {
+            uid: user.id,
+            name: typeof profile.name === "string" && profile.name.trim() ?
+              profile.name.trim() :
+              "Huruchat User",
+            photoUrl: typeof profile.photoUrl === "string" ?
+              profile.photoUrl :
+              "",
+          };
+        }),
+    hasMore,
+    nextCursor: hasMore && page.length > 0 ? page[page.length - 1].id : null,
+  };
+});
+
 exports.sendChatMessageNotification = functions.firestore
     .document("chats/{chatId}/messages/{messageId}")
     .onCreate(async (snapshot, context) => {

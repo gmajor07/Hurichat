@@ -235,33 +235,7 @@ class _AccountScreenState extends State<AccountScreen> {
             title: 'Birth Date',
             value: DateFormatter.formatDate(userData!['birthDate']),
           ),
-
-        InfoRow(
-          icon: Icons.circle,
-          title: 'Status',
-          value: profileStringValue(
-            userData?['status'],
-            fallback: 'Unavailable',
-          ),
-        ),
-        InfoRow(
-          icon: Icons.access_time,
-          title: 'Last seen',
-          value: _formatLastSeen(userData?['lastSeen']),
-        ),
       ],
     );
-  }
-
-  String _formatLastSeen(dynamic value) {
-    final date = switch (value) {
-      Timestamp timestamp => timestamp.toDate(),
-      DateTime dateTime => dateTime,
-      _ => null,
-    };
-    if (date == null) return 'Unavailable';
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-    return '${date.day}/${date.month}/${date.year} $hour:$minute';
   }
 }

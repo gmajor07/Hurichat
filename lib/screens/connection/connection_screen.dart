@@ -6,8 +6,13 @@ import 'connection_flow.dart';
 
 class ConnectionScreen extends StatefulWidget {
   final bool contactsMode;
+  final bool selectForChat;
 
-  const ConnectionScreen({super.key, this.contactsMode = false});
+  const ConnectionScreen({
+    super.key,
+    this.contactsMode = false,
+    this.selectForChat = false,
+  });
 
   @override
   State<ConnectionScreen> createState() => _ConnectionScreenState();
@@ -214,86 +219,94 @@ class _ConnectionScreenState extends State<ConnectionScreen>
         final photoUrl = userData['photoUrl'];
         final phone = userData['phone'] ?? '';
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade800 : Colors.white,
+        final selectable = widget.selectForChat && type == 'accepted';
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Profile Avatar
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: themeColor.withOpacity(0.3),
-                    width: 1.5,
+            onTap: selectable ? () => _sendMessage(userId) : null,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade800 : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-                child: ClipOval(
-                  child: photoUrl != null && photoUrl.isNotEmpty
-                      ? Image.network(photoUrl, fit: BoxFit.cover)
-                      : _buildDefaultAvatar(),
-                ),
+                ],
               ),
-              const SizedBox(width: 16),
-              // User Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userName,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
+              child: Row(
+                children: [
+                  // Profile Avatar
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: themeColor.withOpacity(0.3),
+                        width: 1.5,
                       ),
                     ),
-                    if (phone.isNotEmpty)
-                      Text(
-                        phone,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(type).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _getStatusText(type),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: _getStatusColor(type),
-                        ),
-                      ),
+                    child: ClipOval(
+                      child: photoUrl != null && photoUrl.isNotEmpty
+                          ? Image.network(photoUrl, fit: BoxFit.cover)
+                          : _buildDefaultAvatar(),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 16),
+                  // User Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        if (phone.isNotEmpty)
+                          Text(
+                            phone,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(type).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _getStatusText(type),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: _getStatusColor(type),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Action Buttons
+                  _buildActionButtons(type, userId),
+                ],
               ),
-              // Action Buttons
-              _buildActionButtons(type, userId),
-            ],
+            ),
           ),
         );
       },
@@ -445,6 +458,17 @@ class _ConnectionScreenState extends State<ConnectionScreen>
           ),
         );
       case 'accepted':
+        if (widget.selectForChat) {
+          return Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: themeColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.message, color: themeColor, size: 18),
+          );
+        }
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -604,9 +628,181 @@ class _ConnectionScreenState extends State<ConnectionScreen>
     }
   }
 
-  // Reuse accepted connections, user profiles and the existing chat action.
-  // This path does not read device contacts or request contact permissions.
+  // When selecting a chat recipient, show every user from Firestore so the
+  // user can start a chat with anyone without an accepted connection.
   Widget _buildContactsList() {
+    if (currentUser == null) return const Center(child: Text('Please log in'));
+    if (!widget.selectForChat) {
+      return _buildConnectedContactsList();
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('Could not load users'));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final users = snapshot.data!.docs
+            .where((doc) => doc.id != currentUser!.uid)
+            .map((doc) {
+              final data = Map<String, dynamic>.from(doc.data());
+              return <String, dynamic>{...data, 'uid': doc.id};
+            })
+            .toList()
+          ..sort((a, b) {
+            final nameA = (a['name'] ?? '').toString().toLowerCase();
+            final nameB = (b['name'] ?? '').toString().toLowerCase();
+            return nameA.compareTo(nameB);
+          });
+
+        final matches = users.where((user) {
+          final name = (user['name'] ?? '').toString().toLowerCase();
+          final phone = (user['phone'] ?? '').toString().toLowerCase();
+          return name.contains(_contactQuery) || phone.contains(_contactQuery);
+        }).toList();
+
+        if (matches.isEmpty) {
+          return Center(
+            child: Text(
+              _contactQuery.isEmpty
+                  ? 'No users found'
+                  : 'No users match your search',
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 16, bottom: 100),
+          itemCount: matches.length,
+          itemBuilder: (context, index) => _buildUserCard(matches[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserCard(Map<String, dynamic> user) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final userId = (user['uid'] ?? '').toString();
+    if (userId.isEmpty) return const SizedBox();
+
+    final rawName = (user['name'] ?? '').toString().trim();
+    final name = rawName.isNotEmpty
+        ? rawName[0].toUpperCase() + rawName.substring(1)
+        : 'Unknown User';
+    final photoUrl = (user['photoUrl'] ?? '').toString();
+    final phone = (user['phone'] ?? '').toString();
+    final status = (user['status'] ?? 'offline').toString().toLowerCase();
+    final isOnline =
+        status == 'online' || status == 'active' || status == 'available';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _sendMessage(userId),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade800 : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.07),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: themeColor.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: photoUrl.isNotEmpty
+                          ? Image.network(photoUrl, fit: BoxFit.cover)
+                          : _buildDefaultAvatar(),
+                    ),
+                  ),
+                  if (isOnline)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 13,
+                        height: 13,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark ? Colors.grey.shade800 : Colors.white,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    if (phone.isNotEmpty)
+                      Text(
+                        phone,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.message,
+                  color: themeColor,
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConnectedContactsList() {
     if (currentUser == null) return const Center(child: Text('Please log in'));
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -681,7 +877,11 @@ class _ConnectionScreenState extends State<ConnectionScreen>
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Text(
-          widget.contactsMode ? 'Contacts' : 'Connections',
+          widget.selectForChat
+              ? 'New Chat'
+              : widget.contactsMode
+              ? 'Contacts'
+              : 'Connections',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -759,7 +959,9 @@ class _ConnectionScreenState extends State<ConnectionScreen>
                                   : Colors.black87,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Search contacts...',
+                              hintText: widget.selectForChat
+                                  ? 'Search people...'
+                                  : 'Search contacts...',
                               hintStyle: TextStyle(
                                 color: isDark
                                     ? Colors.white38

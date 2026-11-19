@@ -9,12 +9,12 @@ import '../service_screen.dart';
 import '../shopping/screens/shopping_screen.dart';
 import '../huru/huru_screen.dart';
 import '../status_screen.dart';
+import '../content_discovery_screen.dart';
 
 // Parts
 import 'home_appbar.dart';
 import 'home_bottom_nav.dart';
 import 'home_fab.dart';
-import '../connection/connection_screen.dart';
 import '../connection/connection_request.dart';
 import '../../services/push_notification_service.dart';
 
@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const ShoppingScreen(),
     const DiscoverScreen(),
     const HuruScreen(),
-    const ConnectionScreen(contactsMode: true),
+    const ContentDiscoveryScreen(),
     const StatusScreen(),
   ];
 
@@ -65,20 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 'add_contacts':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ConnectionScreen()),
-        );
-        break;
-      case 'scan':
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Scan coming soon')));
-        break;
-      case 'money':
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Money coming soon')));
+        Navigator.push(context, buildDiscoveryRoute());
         break;
     }
   }

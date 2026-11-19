@@ -40,7 +40,7 @@ AppBar buildHomeAppBar({
                   children: [
                     Icon(Icons.person_outline, color: themeColor),
                     const SizedBox(width: 12),
-                    const Text('My Profile'),
+                    const Expanded(child: Text('My Profile')),
                   ],
                 ),
               ),
@@ -50,7 +50,7 @@ AppBar buildHomeAppBar({
                   children: [
                     Icon(Icons.settings_outlined, color: themeColor),
                     const SizedBox(width: 12),
-                    const Text('Settings'),
+                    const Expanded(child: Text('Settings')),
                   ],
                 ),
               ),
@@ -60,7 +60,7 @@ AppBar buildHomeAppBar({
                   children: [
                     Icon(Icons.person_add_outlined, color: themeColor),
                     const SizedBox(width: 12),
-                    const Text('Connection Requests'),
+                    const Expanded(child: Text('Connection Requests')),
                   ],
                 ),
               ),
@@ -70,30 +70,7 @@ AppBar buildHomeAppBar({
                   children: [
                     Icon(Icons.person_add_alt_1, color: themeColor),
                     const SizedBox(width: 12),
-                    const Text('Add Contacts'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'scan',
-                child: Row(
-                  children: [
-                    Icon(Icons.qr_code_scanner, color: themeColor),
-                    const SizedBox(width: 12),
-                    const Text('Scan'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'money',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: themeColor,
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('Money'),
+                    const Expanded(child: Text('Add Contacts')),
                   ],
                 ),
               ),
@@ -104,7 +81,12 @@ AppBar buildHomeAppBar({
                   children: [
                     Icon(Icons.logout, color: Colors.redAccent),
                     const SizedBox(width: 12),
-                    Text('Logout', style: TextStyle(color: Colors.redAccent)),
+                    const Expanded(
+                      child: Text(
+                        'Logout',
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
                   ],
                 ),
               ),

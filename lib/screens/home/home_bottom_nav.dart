@@ -18,8 +18,8 @@ Widget buildBottomNavigationBar({
     top: false,
     minimum: const EdgeInsets.fromLTRB(16, 0, 16, 10),
     child: Container(
-      height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      height: 76,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: dockColor,
         borderRadius: BorderRadius.circular(28),
@@ -40,52 +40,76 @@ Widget buildBottomNavigationBar({
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: AppFeatures.visibleNavigationIndices.map((index) {
           final bool selected = index == currentIndex;
-          return Semantics(
-            label: switch (index) {
-              0 => 'Chats',
-              6 => 'Status',
-              1 => 'Services',
-              2 => 'Shopping',
-              3 => 'Discover',
-              4 => 'Me',
-              5 => 'Contacts',
-              _ => '',
-            },
-            selected: selected,
-            button: true,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () => onTap(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? activeColor
-                      : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: selected
-                        ? dockColor.withValues(alpha: 0.85)
-                        : Colors.transparent,
-                    width: 1.4,
-                  ),
-                  boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: activeColor.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: _buildNavIcon(
-                    index: index,
-                    color: selected ? Colors.white : inactiveColor,
-                  ),
+          final label = switch (index) {
+            0 => 'Chat',
+            6 => 'Status',
+            1 => 'Services',
+            2 => 'Shopping',
+            3 => 'Discover',
+            4 => 'Me',
+            5 => 'Content+',
+            _ => '',
+          };
+          return Expanded(
+            child: Semantics(
+              label: label,
+              selected: selected,
+              button: true,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () => onTap(index),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? activeColor
+                            : (isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade200),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected
+                              ? dockColor.withValues(alpha: 0.85)
+                              : Colors.transparent,
+                          width: 1.4,
+                        ),
+                        boxShadow: selected
+                            ? [
+                                BoxShadow(
+                                  color: activeColor.withValues(alpha: 0.35),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: _buildNavIcon(
+                          index: index,
+                          color: selected ? Colors.white : inactiveColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected ? activeColor : inactiveColor,
+                        fontSize: 10,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -98,7 +122,7 @@ Widget buildBottomNavigationBar({
 
 Widget _buildNavIcon({required int index, required Color color}) {
   if (index == 5) {
-    return Icon(Icons.people_outline, size: 22, color: color);
+    return Icon(Icons.add_box_outlined, size: 22, color: color);
   }
   if (index == 0) {
     return SvgPicture.asset(

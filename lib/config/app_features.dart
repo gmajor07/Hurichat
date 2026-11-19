@@ -3,6 +3,7 @@ abstract final class AppFeatures {
   static const messaging = true;
   static const status = true;
   static const contacts = true;
+  static const content = true;
   // No calling implementation or history exists yet; preserve chat buttons.
   static const calls = false;
   static const services = true;
@@ -15,7 +16,7 @@ abstract final class AppFeatures {
     if (messaging) 0,
     if (status) 6,
     if (services) 1,
-    if (contacts) 5,
+    if (content) 5,
     if (shopping) 2,
     if (discover) 3,
     if (profile) 4,

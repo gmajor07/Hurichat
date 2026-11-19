@@ -29,6 +29,27 @@ void main() {
     expect(items.map((item) => item['userId']), ['peer']);
   });
 
+  test('excludes chats hidden from this account', () {
+    final items = buildConversationInboxItems(
+      currentUserId: 'me',
+      chats: [
+        MapEntry('hidden-chat', {
+          'members': ['me', 'hidden-peer'],
+          'last_message_timestamp': 500,
+        }),
+        MapEntry('visible-chat', {
+          'members': ['me', 'visible-peer'],
+        }),
+      ],
+      profiles: {},
+      pinnedUserIds: {},
+      hiddenChatIds: {'hidden-chat'},
+      clearedChats: {'hidden-chat': 1000},
+    );
+
+    expect(items.map((item) => item['chatId']), ['visible-chat']);
+  });
+
   test(
     'shows existing conversations using their stored chat ID and preview',
     () {
@@ -307,5 +328,108 @@ void main() {
       ),
       isEmpty,
     );
+  });
+
+  test('keeps a cleared chat hidden while no newer message arrived', () {
+    final items = buildConversationInboxItems(
+      currentUserId: 'me',
+      chats: [
+        MapEntry('me_peer', {
+          'members': ['me', 'peer'],
+          'last_message_timestamp': 1000,
+        }),
+      ],
+      profiles: {},
+      pinnedUserIds: {},
+      hiddenChatIds: {'me_peer'},
+      clearedChats: {'me_peer': 1000},
+    );
+
+    expect(items, isEmpty);
+  });
+
+  test('shows a hidden chat when a newer message arrives after clearing', () {
+    final items = buildConversationInboxItems(
+      currentUserId: 'me',
+      chats: [
+        MapEntry('me_peer', {
+          'members': ['me', 'peer'],
+          'last_message_timestamp': 2000,
+        }),
+      ],
+      profiles: {
+        'peer': {'name': 'Peer'},
+      },
+      pinnedUserIds: {},
+      hiddenChatIds: {'me_peer'},
+      clearedChats: {'me_peer': 1000},
+    );
+
+    expect(items, hasLength(1));
+    expect(items.single['chatId'], 'me_peer');
+    expect(items.single['lastTimestamp'], 2000);
+  });
+
+  test(
+    'keeps a cleared chat hidden when the message equals the clear time',
+    () {
+      final items = buildConversationInboxItems(
+        currentUserId: 'me',
+        chats: [
+          MapEntry('me_peer', {
+            'members': ['me', 'peer'],
+            'last_message_timestamp': 1000,
+          }),
+        ],
+        profiles: {},
+        pinnedUserIds: {},
+        hiddenChatIds: {'me_peer'},
+        clearedChats: {'me_peer': 1000},
+      );
+
+      expect(items, isEmpty);
+    },
+  );
+
+  test('ignores a cleared timestamp for chats that are not hidden', () {
+    final items = buildConversationInboxItems(
+      currentUserId: 'me',
+      chats: [
+        MapEntry('me_peer', {
+          'members': ['me', 'peer'],
+          'last_message_timestamp': 1000,
+        }),
+      ],
+      profiles: {
+        'peer': {'name': 'Peer'},
+      },
+      pinnedUserIds: {},
+      clearedChats: {'me_peer': 5000},
+    );
+
+    expect(items, hasLength(1));
+    expect(items.single['chatId'], 'me_peer');
+  });
+
+  test('shows legacy hidden chats that have no cleared timestamp', () {
+    // Older delete flow only wrote hiddenChats (no clearedChats entry). Such
+    // chats must reappear in the inbox so a conversation can be restarted.
+    final items = buildConversationInboxItems(
+      currentUserId: 'me',
+      chats: [
+        MapEntry('me_peer', {
+          'members': ['me', 'peer'],
+          'last_message_timestamp': 1000,
+        }),
+      ],
+      profiles: {
+        'peer': {'name': 'Peer'},
+      },
+      pinnedUserIds: {},
+      hiddenChatIds: {'me_peer'},
+    );
+
+    expect(items, hasLength(1));
+    expect(items.single['chatId'], 'me_peer');
   });
 }

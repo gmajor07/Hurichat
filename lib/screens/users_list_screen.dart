@@ -9,6 +9,8 @@ import 'chat/conversation_inbox.dart';
 import 'chat/chat_screen.dart';
 import 'chat/message_read_state.dart';
 
+enum _SelectedChatAction { pin, unpin, block }
+
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
 
@@ -81,20 +83,42 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
-  Future<void> _deleteConnection(String userId) async {
+  Future<void> _deleteConnection(String chatId) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser!.uid)
-          .update({
-            'chatHistory': FieldValue.arrayRemove([userId]),
-          })
-          .catchError((_) {});
+      await _deleteConversationForMe(chatId);
       if (mounted) {
-        _showSnack('Chat removed');
+        _showSnack('Chat deleted');
       }
-    } catch (_) {
-      if (mounted) _showSnack('Failed to remove chat');
+    } catch (error, stackTrace) {
+      debugPrint('Could not delete chat $chatId: $error\n$stackTrace');
+      if (mounted) _showSnack('Failed to delete chat');
+    }
+  }
+
+  /// WhatsApp-style "delete for me": removes the conversation from this user's
+  /// account only. Shared Firestore messages and the conversation document are
+  /// left untouched so the other participant keeps their history.
+  ///
+  /// A per-user `clearedChats.{chatId}` map entry records when this user cleared
+  /// the chat; ChatScreen filters out messages at or before that instant, and
+  /// the inbox uses it to re-show the chat when a newer message arrives. The
+  /// local Hive caches for this account are cleared so stale messages cannot
+  /// reappear after a restart.
+  Future<void> _deleteConversationForMe(String chatId) async {
+    final firestore = FirebaseFirestore.instance;
+    final uid = currentUser!.uid;
+
+    await firestore.collection('users').doc(uid).update({
+      'clearedChats.$chatId': FieldValue.serverTimestamp(),
+      'hiddenChats': FieldValue.arrayUnion([chatId]),
+    });
+
+    if (Hive.isBoxOpen('messages')) {
+      await Hive.box('messages').delete(chatId);
+    }
+    if (Hive.isBoxOpen('drafts')) {
+      final key = conversationDraftKey(accountId: uid, chatId: chatId);
+      await Hive.box('drafts').delete(key);
     }
   }
 
@@ -151,24 +175,75 @@ class _UsersListScreenState extends State<UsersListScreen> {
       ..addAll(userIds);
   });
 
-  Future<void> _deleteSelectedConnections() async {
-    try {
-      for (var userId in _selectedUserIds) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser!.uid)
-            .update({
-              'chatHistory': FieldValue.arrayRemove([userId]),
-            })
-            .catchError((_) {});
+  Future<void> _deleteSelectedConnections(
+    List<Map<String, dynamic>> selectedItems,
+  ) async {
+    final chatIds = selectedItems
+        .map((item) => item['chatId'] as String)
+        .toSet()
+        .toList();
+    if (chatIds.isEmpty) return;
+
+    var deleted = 0;
+    for (final chatId in chatIds) {
+      try {
+        await _deleteConversationForMe(chatId);
+        deleted += 1;
+      } catch (error, stackTrace) {
+        debugPrint('Could not delete chat $chatId: $error\n$stackTrace');
       }
-      setState(() {
-        _selectedUserIds.clear();
-        _isSelectionMode = false;
-      });
-      if (mounted) _showSnack('Chats removed');
-    } catch (_) {
-      if (mounted) _showSnack('Failed to remove chats');
+    }
+    if (!mounted) return;
+    setState(() {
+      _selectedUserIds.clear();
+      _isSelectionMode = false;
+    });
+    if (deleted == chatIds.length) {
+      _showSnack('Chats deleted');
+    } else if (deleted > 0) {
+      _showSnack('Deleted $deleted of ${chatIds.length} chats');
+    } else {
+      _showSnack('Failed to delete chats');
+    }
+  }
+
+  Future<void> _applySelectedAction(
+    _SelectedChatAction action,
+    List<Map<String, dynamic>> selectedItems,
+  ) async {
+    final userIds = selectedItems
+        .map((item) => item['userId'] as String)
+        .toSet()
+        .toList();
+    if (userIds.isEmpty) return;
+
+    final field = switch (action) {
+      _SelectedChatAction.pin || _SelectedChatAction.unpin => 'pinnedChats',
+      _SelectedChatAction.block => 'blockedUsers',
+    };
+    final value = switch (action) {
+      _SelectedChatAction.pin => FieldValue.arrayUnion(userIds),
+      _SelectedChatAction.unpin => FieldValue.arrayRemove(userIds),
+      _SelectedChatAction.block => FieldValue.arrayUnion(userIds),
+    };
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .set({field: value}, SetOptions(merge: true));
+      if (mounted) {
+        _showSnack(switch (action) {
+          _SelectedChatAction.pin => 'Chats pinned',
+          _SelectedChatAction.unpin => 'Chats unpinned',
+          _SelectedChatAction.block => 'Users blocked',
+        });
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Could not apply $action to selected chats: $error\n$stackTrace',
+      );
+      if (mounted) _showSnack('Failed to update selected chats');
     }
   }
 
@@ -257,12 +332,31 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
                       // Collect pinned chat IDs
                       final pinnedUserIds = <String>{};
+                      final hiddenChatIds = <String>{};
+                      final clearedChatsMap = <String, int>{};
                       for (final doc in usersSnapshot.data!.docs) {
                         if (doc.id != currentUser!.uid) continue;
                         final data = doc.data();
                         final raw =
                             (data['pinnedChats'] as List<dynamic>?) ?? [];
                         pinnedUserIds.addAll(raw.map((id) => id.toString()));
+                        final hidden = data['hiddenChats'];
+                        if (hidden is List) {
+                          hiddenChatIds.addAll(hidden.whereType<String>());
+                        }
+                        final clearedChats = data['clearedChats'];
+                        if (clearedChats is Map) {
+                          clearedChats.forEach((key, value) {
+                            final chatId = key?.toString();
+                            if (chatId == null || chatId.isEmpty) return;
+                            final millis = switch (value) {
+                              Timestamp ts => ts.millisecondsSinceEpoch,
+                              int i => i,
+                              _ => 0,
+                            };
+                            clearedChatsMap[chatId] = millis;
+                          });
+                        }
                         break;
                       }
 
@@ -274,14 +368,13 @@ class _UsersListScreenState extends State<UsersListScreen> {
                           buildConversationInboxItems(
                             currentUserId: currentUser!.uid,
                             chats: chatsSnapshot.data!.docs.map(
-                              (doc) => MapEntry(
-                                doc.id,
-                                doc.data(),
-                              ),
+                              (doc) => MapEntry(doc.id, doc.data()),
                             ),
                             profiles: profiles,
                             pinnedUserIds: pinnedUserIds,
                             drafts: draftValues,
+                            hiddenChatIds: hiddenChatIds,
+                            clearedChats: clearedChatsMap,
                           ).where((item) {
                             if (searchQuery.isEmpty) return true;
                             return (item['name'] as String)
@@ -309,6 +402,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
                       final userIds = chatItems
                           .map((item) => item['userId'] as String)
                           .toList();
+                      final selectedItems = allChatItems
+                          .where(
+                            (item) => _selectedUserIds.contains(item['userId']),
+                          )
+                          .toList();
 
                       return Stack(
                         children: [
@@ -334,7 +432,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                           0,
                                         ),
                                         child: Text(
-                                          'Active Now',
+                                          'Quick chats',
                                           style: TextStyle(
                                             fontSize: 12.5,
                                             fontWeight: FontWeight.w600,
@@ -365,16 +463,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                             final photo =
                                                 s['photoUrl'] as String;
                                             final name = s['name'] as String;
-                                            final status =
-                                                s['status'] as String;
-                                            final bool online =
-                                                status == 'online' ||
-                                                status == 'active' ||
-                                                status == 'available';
                                             return _StoryAvatar(
                                               photo: photo,
                                               name: name,
-                                              online: online,
                                               isDark: isDark,
                                               onTap: () async {
                                                 if (!context.mounted) return;
@@ -448,17 +539,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
                               final chatId = item['chatId'] as String;
                               final userName = item['name'] as String;
                               final photoUrl = item['photoUrl'] as String;
-                              final status = item['status'] as String;
                               final lastMessage = item['lastMessage'] as String;
                               final lastTimestamp =
                                   item['lastTimestamp'] as int;
                               final isPinned = item['isPinned'] as bool;
                               final formattedTime = _formatTime(lastTimestamp);
-                              final isOnline =
-                                  status == 'online' ||
-                                  status == 'active' ||
-                                  status == 'available';
-
                               final unreadCount = _unreadCounts.countFor(
                                 chatId,
                               );
@@ -470,7 +555,6 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                 userId: userId,
                                 userName: userName,
                                 photoUrl: photoUrl,
-                                isOnline: isOnline,
                                 lastMessage: lastMessage,
                                 isDraft: item['isDraft'] == true,
                                 formattedTime: formattedTime,
@@ -498,6 +582,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                                     : () => _showChatOptions(
                                         context,
                                         userId: userId,
+                                        chatId: chatId,
                                         userName: userName,
                                         isPinned: isPinned,
                                         isDark: isDark,
@@ -510,12 +595,16 @@ class _UsersListScreenState extends State<UsersListScreen> {
                           // ── Floating selection action bar ────────────
                           if (_isSelectionMode)
                             _SelectionBar(
-                              selectedCount: _selectedUserIds.length,
+                              selectedCount: selectedItems.length,
                               isDark: isDark,
                               onSelectAll: () => _selectAll(userIds),
-                              onDelete: _selectedUserIds.isEmpty
+                              onDelete: selectedItems.isEmpty
                                   ? null
-                                  : _deleteSelectedConnections,
+                                  : () => _deleteSelectedConnections(
+                                      selectedItems,
+                                    ),
+                              onAction: (action) =>
+                                  _applySelectedAction(action, selectedItems),
                               onCancel: _exitSelectionMode,
                             ),
                         ],
@@ -536,6 +625,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
   void _showChatOptions(
     BuildContext context, {
     required String userId,
+    required String chatId,
     required String userName,
     required bool isPinned,
     required bool isDark,
@@ -622,7 +712,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                   isDark: sheetDark,
                   onTap: () {
                     Navigator.pop(sheetCtx);
-                    _deleteConnection(userId);
+                    _deleteConnection(chatId);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -727,18 +817,16 @@ class _ModernSearchBar extends StatelessWidget {
   }
 }
 
-/// Story avatar with gradient ring + online indicator
+/// Quick-chat avatar used above the conversation list.
 class _StoryAvatar extends StatelessWidget {
   final String photo;
   final String name;
-  final bool online;
   final bool isDark;
   final VoidCallback onTap;
 
   const _StoryAvatar({
     required this.photo,
     required this.name,
-    required this.online,
     required this.isDark,
     required this.onTap,
   });
@@ -754,14 +842,7 @@ class _StoryAvatar extends StatelessWidget {
             padding: const EdgeInsets.all(2.5),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: online
-                  ? const LinearGradient(
-                      colors: [Color(0xFF4CAFaa), Color(0xFF2E7D68)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              color: online ? null : Colors.grey.shade300,
+              color: isDark ? Colors.white24 : Colors.grey.shade300,
             ),
             child: Container(
               padding: const EdgeInsets.all(2),
@@ -805,7 +886,6 @@ class _ChatTile extends StatelessWidget {
   final String userId;
   final String userName;
   final String photoUrl;
-  final bool isOnline;
   final String lastMessage;
   final bool isDraft;
   final String formattedTime;
@@ -822,7 +902,6 @@ class _ChatTile extends StatelessWidget {
     required this.userId,
     required this.userName,
     required this.photoUrl,
-    required this.isOnline,
     required this.lastMessage,
     this.isDraft = false,
     required this.formattedTime,
@@ -884,39 +963,15 @@ class _ChatTile extends StatelessWidget {
                     ),
                   )
                 else
-                  // Avatar with online dot
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundImage: photoUrl.isNotEmpty
-                            ? NetworkImage(photoUrl)
-                            : null,
-                        backgroundColor: Colors.grey.shade300,
-                        child: photoUrl.isEmpty
-                            ? Icon(Icons.person, color: Colors.white, size: 26)
-                            : null,
-                      ),
-                      if (isOnline)
-                        Positioned(
-                          bottom: 1,
-                          right: 1,
-                          child: Container(
-                            width: 13,
-                            height: 13,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4CAF50),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isDark
-                                    ? const Color(0xFF121212)
-                                    : Colors.white,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundImage: photoUrl.isNotEmpty
+                        ? NetworkImage(photoUrl)
+                        : null,
+                    backgroundColor: Colors.grey.shade300,
+                    child: photoUrl.isEmpty
+                        ? Icon(Icons.person, color: Colors.white, size: 26)
+                        : null,
                   ),
 
                 const SizedBox(width: 12),
@@ -1130,6 +1185,7 @@ class _SelectionBar extends StatelessWidget {
   final bool isDark;
   final VoidCallback onSelectAll;
   final VoidCallback? onDelete;
+  final ValueChanged<_SelectedChatAction> onAction;
   final VoidCallback onCancel;
 
   const _SelectionBar({
@@ -1137,13 +1193,14 @@ class _SelectionBar extends StatelessWidget {
     required this.isDark,
     required this.onSelectAll,
     required this.onDelete,
+    required this.onAction,
     required this.onCancel,
   });
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      bottom: 16,
+      bottom: MediaQuery.of(context).viewPadding.bottom + 96,
       left: 16,
       right: 16,
       child: Container(
@@ -1161,28 +1218,60 @@ class _SelectionBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onSelectAll,
-                icon: const Icon(Icons.select_all_rounded, size: 17),
-                label: const Text('All'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF4CAFaa),
-                  side: const BorderSide(color: Color(0xFF4CAFaa)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+            IconButton(
+              tooltip: 'Select all',
+              onPressed: onSelectAll,
+              icon: const Icon(Icons.select_all_rounded),
+              color: const Color(0xFF4CAFaa),
+            ),
+            PopupMenuButton<_SelectedChatAction>(
+              enabled: selectedCount > 0,
+              tooltip: 'More chat actions',
+              onSelected: onAction,
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: _SelectedChatAction.pin,
+                  child: ListTile(
+                    leading: Icon(Icons.push_pin_outlined),
+                    title: Text('Pin selected'),
+                    contentPadding: EdgeInsets.zero,
                   ),
+                ),
+                PopupMenuItem(
+                  value: _SelectedChatAction.unpin,
+                  child: ListTile(
+                    leading: Icon(Icons.push_pin),
+                    title: Text('Unpin selected'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _SelectedChatAction.block,
+                  child: ListTile(
+                    leading: Icon(Icons.block_outlined),
+                    title: Text('Block selected'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.more_vert_rounded,
+                  color: selectedCount > 0
+                      ? (isDark ? Colors.white70 : Colors.black54)
+                      : (isDark ? Colors.white24 : Colors.black26),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: onDelete,
                 icon: const Icon(Icons.delete_outline_rounded, size: 17),
                 label: Text(
                   selectedCount > 0 ? 'Remove ($selectedCount)' : 'Remove',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade400,
@@ -1196,18 +1285,12 @@ class _SelectionBar extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white12 : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: IconButton(
-                onPressed: onCancel,
-                icon: Icon(
-                  Icons.close_rounded,
-                  color: isDark ? Colors.white54 : Colors.grey.shade600,
-                ),
+            IconButton(
+              tooltip: 'Cancel selection',
+              onPressed: onCancel,
+              icon: Icon(
+                Icons.close_rounded,
+                color: isDark ? Colors.white54 : Colors.grey.shade600,
               ),
             ),
           ],

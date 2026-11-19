@@ -1,5 +1,5 @@
 import 'config/feature_routes.dart';
-import 'screens/connection/connection_screen.dart';
+import 'screens/connection/discovery_connection_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:huruchat/firebase_options.dart';
@@ -62,7 +62,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
-        '/contacts': (context) => const ConnectionScreen(contactsMode: true),
+        '/contacts': (context) => const ConnectionsDiscoveryScreen(),
         '/phone': (context) => const PhoneAuthPage(),
         '/seller_screen': (context) => const MarketplaceUploadPage(),
         '/account_profile': (context) => const AccountScreen(),

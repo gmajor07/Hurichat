@@ -21,7 +21,7 @@ void main() {
     expect(offlineCalls, 1);
   });
 
-  testWidgets('Contacts exposes the existing Discover destination', (
+  testWidgets('Content+ has no duplicate FAB; discovery remains available', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -38,14 +38,21 @@ void main() {
       ),
     );
 
-    expect(find.byTooltip('Discover people'), findsOneWidget);
     expect(buildDiscoveryScreen(), isA<ConnectionsDiscoveryScreen>());
+    expect(
+      buildFAB(
+        currentIndex: 5,
+        themeColor: const Color(0xFF4CAFAB),
+        context: tester.element(find.byType(Scaffold)),
+      ),
+      isNull,
+    );
   });
 
   test(
     'functional messaging tabs are enabled; calls and commerce stay disabled',
     () {
-      expect(AppFeatures.visibleNavigationIndices, [0, 5, 4]);
+      expect(AppFeatures.visibleNavigationIndices, [0, 6, 1, 5, 4]);
       for (final route in [
         '/calls',
         '/seller_screen',
@@ -105,7 +112,7 @@ void main() {
   });
 
   testWidgets(
-    'existing bottom bar switches Chats, Contacts and Profile at narrow width',
+    'bottom bar shows labels and switches Chat, Content+ and Me at narrow width',
     (tester) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
@@ -118,7 +125,7 @@ void main() {
             builder: (context, setState) => Scaffold(
               body: Text(switch (selected) {
                 0 => 'Chat content',
-                5 => 'Contacts content',
+                5 => 'Content+ content',
                 _ => 'Profile content',
               }),
               bottomNavigationBar: buildBottomNavigationBar(
@@ -132,13 +139,17 @@ void main() {
         ),
       );
       expect(find.text('Chat content'), findsOneWidget);
-      expect(find.byType(InkWell), findsNWidgets(3));
+      expect(find.byType(InkWell), findsNWidgets(5));
+      for (final label in ['Chat', 'Status', 'Services', 'Content+', 'Me']) {
+        expect(find.text(label), findsOneWidget);
+      }
       expect(find.bySemanticsLabel('Calls'), findsNothing);
-      await tester.tap(find.bySemanticsLabel('Contacts'));
+      expect(find.bySemanticsLabel('Contacts'), findsNothing);
+      await tester.tap(find.text('Content+'));
       await tester.pumpAndSettle();
       expect(selected, 5);
-      expect(find.text('Contacts content'), findsOneWidget);
-      await tester.tap(find.bySemanticsLabel('Profile'));
+      expect(find.text('Content+ content'), findsOneWidget);
+      await tester.tap(find.text('Me'));
       await tester.pumpAndSettle();
       expect(selected, 4);
       expect(find.text('Profile content'), findsOneWidget);

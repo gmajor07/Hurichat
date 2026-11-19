@@ -230,6 +230,81 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('composer action changes between microphone and send', (
+    tester,
+  ) async {
+    var startedRecordings = 0;
+    var sentMessages = 0;
+
+    Future<void> pumpAction({required bool hasText}) {
+      return tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ChatComposerPrimaryAction(
+                hasText: hasText,
+                isSending: false,
+                isBusy: false,
+                canRecord: true,
+                isRecording: false,
+                onSendPressed: () => sentMessages++,
+                onStartRecording: () => startedRecordings++,
+                onStopRecording: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pumpAction(hasText: false);
+    expect(find.byKey(const ValueKey('composer-microphone')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('composer-primary-action')));
+    expect(startedRecordings, 1);
+
+    await pumpAction(hasText: true);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('composer-send')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('composer-primary-action')));
+    expect(sentMessages, 1);
+
+    await pumpAction(hasText: false);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('composer-microphone')), findsOneWidget);
+  });
+
+  testWidgets('composer action stops an active voice recording', (
+    tester,
+  ) async {
+    var stoppedRecordings = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ChatComposerPrimaryAction(
+              hasText: false,
+              isSending: false,
+              isBusy: false,
+              canRecord: false,
+              isRecording: true,
+              onSendPressed: () {},
+              onStartRecording: () {},
+              onStopRecording: () => stoppedRecordings++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('composer-stop-recording')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('composer-primary-action')));
+    expect(stoppedRecordings, 1);
+  });
 }
 
 Map<String, dynamic> _textMessage({

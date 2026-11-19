@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../connection/connection_screen.dart';
 import '../connection/discovery_connection_screen.dart';
 
 Widget buildDiscoveryScreen() => const ConnectionsDiscoveryScreen();
 
-Route<void> buildDiscoveryRoute() => MaterialPageRoute<void>(
-  builder: (_) => buildDiscoveryScreen(),
-);
+Widget buildNewChatScreen() =>
+    const ConnectionScreen(contactsMode: true, selectForChat: true);
+
+Route<void> buildDiscoveryRoute() =>
+    MaterialPageRoute<void>(builder: (_) => buildDiscoveryScreen());
 
 Widget? buildFAB({
   required int currentIndex,
@@ -21,7 +24,10 @@ Widget? buildFAB({
         elevation: 4,
         tooltip: 'New Chat',
         onPressed: () {
-          Navigator.push(context, buildDiscoveryRoute());
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => buildNewChatScreen()),
+          );
         },
         child: SvgPicture.asset(
           'assets/icon/chat.svg',
@@ -29,16 +35,6 @@ Widget? buildFAB({
           height: 24,
           colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
         ),
-      );
-    case 5:
-      return FloatingActionButton(
-        backgroundColor: themeColor,
-        elevation: 4,
-        tooltip: 'Discover people',
-        onPressed: () {
-          Navigator.push(context, buildDiscoveryRoute());
-        },
-        child: const Icon(Icons.person_add_alt_1, color: Colors.white),
       );
     default:
       return null;

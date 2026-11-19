@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   cloud_firestore
   emoji_picker_flutter
+  ffmpeg_kit_flutter_new
   file_selector_windows
   firebase_auth
   firebase_core

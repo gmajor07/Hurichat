@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:huruchat/config/app_features.dart';
+import 'package:huruchat/screens/content_plus_screen.dart';
 import 'package:huruchat/screens/status_screen.dart';
 
 void main() {
@@ -13,5 +14,12 @@ void main() {
 
     expect(find.text('Status'), findsOneWidget);
     expect(find.text('No status updates yet'), findsOneWidget);
+  });
+
+  testWidgets('Content+ shows its placeholder screen', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: ContentPlusScreen()));
+
+    expect(find.text('Content+'), findsOneWidget);
+    expect(find.text('Content creation is coming soon.'), findsOneWidget);
   });
 }

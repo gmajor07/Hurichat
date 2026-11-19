@@ -1,5 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../chat/chat_screen.dart';
 
 class ReceiverDetailsScreen extends StatefulWidget {
   final String userId;
@@ -20,18 +25,74 @@ class _ReceiverDetailsScreenState extends State<ReceiverDetailsScreen> {
   }
 
   Future<void> _fetchUserData() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .get();
-    if (doc.exists) {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+      if (!mounted) return;
       setState(() {
-        userData = doc.data();
+        userData = doc.exists ? doc.data() : null;
         _loading = false;
       });
-    } else {
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load friend details: $error\n$stackTrace');
+      if (!mounted) return;
       setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load friend details.')),
+      );
     }
+  }
+
+  String _formatName(String value) => value
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+
+  bool _isOnline(String status) =>
+      const {'online', 'active', 'available'}.contains(status.toLowerCase());
+
+  Future<void> _callPhone(String phone) async {
+    final number = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (number.isEmpty) return;
+    try {
+      final launched = await launchUrl(
+        Uri(scheme: 'tel', path: number),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the phone app.')),
+        );
+      }
+    } on PlatformException catch (error, stackTrace) {
+      debugPrint('Failed to open phone app: $error\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the phone app.')),
+        );
+      }
+    }
+  }
+
+  void _openChat() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to message this person.')),
+      );
+      return;
+    }
+    final members = [currentUserId, widget.userId]..sort();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ChatScreen(chatId: members.join('_'), userId: widget.userId),
+      ),
+    );
   }
 
   Widget _buildInfoTile({
@@ -95,21 +156,19 @@ class _ReceiverDetailsScreenState extends State<ReceiverDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final String name = (userData?['name'] as String?) ?? 'Unknown User';
-    final String phone = (userData?['phone'] as String?) ?? 'No phone number';
-    final String status = (userData?['status'] as String?) ?? 'Active';
+    final String name = _formatName(
+      (userData?['name'] as String?) ?? 'Unknown User',
+    );
+    final String phone = (userData?['phone'] as String?) ?? '';
+    final String status = (userData?['status'] as String?) ?? 'offline';
+    final bool isOnline = _isOnline(status);
     final String? photoUrl = userData?['photoUrl'] as String?;
 
     return Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF121212)
           : const Color(0xFFF5F5F7),
-      appBar: AppBar(
-        title: const Text('Friend Info'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -157,78 +216,84 @@ class _ReceiverDetailsScreenState extends State<ReceiverDetailsScreen> {
                             color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          phone,
-                          style: TextStyle(
-                            color: isDark ? Colors.white60 : Colors.black54,
-                          ),
+                        const SizedBox(height: 8),
+                        Row(
+                          key: const ValueKey('friend-details-status'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isOnline) ...[
+                              Container(
+                                key: const ValueKey(
+                                  'friend-details-online-indicator',
+                                ),
+                                width: 9,
+                                height: 9,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF22C55E),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                            ],
+                            Text(
+                              isOnline ? 'Online' : 'Offline',
+                              style: TextStyle(
+                                color: isOnline
+                                    ? const Color(0xFF22C55E)
+                                    : (isDark
+                                          ? Colors.white60
+                                          : Colors.black54),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
+                        if (phone.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            phone,
+                            style: TextStyle(
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         Row(
                           children: [
                             Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF2B705),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.call,
-                                      size: 18,
-                                      color: Colors.black87,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Call',
-                                      style: TextStyle(
-                                        color: Colors.black87,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
+                              child: FilledButton.icon(
+                                key: const ValueKey('friend-details-call'),
+                                onPressed: phone.isEmpty
+                                    ? null
+                                    : () => _callPhone(phone),
+                                icon: const Icon(Icons.call_outlined, size: 18),
+                                label: const Text('Call'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF2B705),
+                                  foregroundColor: Colors.black87,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 10,
+                              child: OutlinedButton.icon(
+                                key: const ValueKey('friend-details-message'),
+                                onPressed: _openChat,
+                                icon: const Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 18,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? const Color(0xFF2A2A2A)
-                                      : const Color(0xFFF2F2F2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.chat_bubble_outline,
-                                      size: 18,
-                                      color: isDark
-                                          ? Colors.white70
-                                          : Colors.black87,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Message',
-                                      style: TextStyle(
-                                        color: isDark
-                                            ? Colors.white70
-                                            : Colors.black87,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
+                                label: const Text('Message'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: isDark
+                                      ? Colors.white70
+                                      : Colors.black87,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                 ),
                               ),
                             ),
@@ -254,12 +319,6 @@ class _ReceiverDetailsScreenState extends State<ReceiverDetailsScreen> {
                     icon: Icons.phone_iphone_outlined,
                     title: 'Phone Number',
                     value: phone,
-                    isDark: isDark,
-                  ),
-                  _buildInfoTile(
-                    icon: Icons.circle,
-                    title: 'Status',
-                    value: status,
                     isDark: isDark,
                   ),
                   if (userData?['gender'] != null)

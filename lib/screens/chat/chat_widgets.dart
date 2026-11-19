@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter_waveform_player/flutter_waveform_player.dart';
 import 'chat_controller.dart';
 import 'chat_theme.dart';
 import 'message_read_state.dart';
@@ -26,8 +27,14 @@ class MessageEditBanner extends StatelessWidget {
         children: [
           const Icon(Icons.edit_outlined, size: 16),
           const SizedBox(width: 8),
-          const Expanded(
-            child: Text('Editing message', style: TextStyle(fontSize: 13)),
+          Expanded(
+            child: Text(
+              'Editing message',
+              style: TextStyle(
+                fontSize: 13,
+                color: ChatTheme.getPrimaryText(context),
+              ),
+            ),
           ),
           IconButton(
             tooltip: 'Cancel edit',
@@ -119,6 +126,7 @@ class ReplyMessagePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = isOutgoing
         ? Colors.white
         : Theme.of(context).colorScheme.primary;
@@ -128,6 +136,8 @@ class ReplyMessagePreview extends StatelessWidget {
       decoration: BoxDecoration(
         color: isComposer
             ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : isDark
+            ? Colors.white.withValues(alpha: 0.06)
             : Colors.black.withValues(alpha: isOutgoing ? 0.14 : 0.06),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -292,10 +302,17 @@ class MessageTile extends StatelessWidget {
         }
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final maxBubbleWidth = constraints.maxWidth * 0.7;
+            final isSimpleText =
+                message['type'] != 'image' &&
+                message['type'] != 'voice' &&
+                !hasReplyMetadata(message) &&
+                message['isForwarded'] != true &&
+                message['editedAt'] == null;
+
             return Row(
               mainAxisAlignment: isMe
                   ? MainAxisAlignment.end
@@ -329,112 +346,164 @@ class MessageTile extends StatelessWidget {
                           ? CrossAxisAlignment.end
                           : CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          key: const ValueKey('message-bubble'),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: isMe && !isFailed
-                                ? LinearGradient(
-                                    colors: ChatTheme.getSenderGradient(
-                                      context,
-                                    ),
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : null,
-                            color: isFailed
-                                ? Colors.red.shade400
-                                : (!isMe
-                                      ? ChatTheme.getReceiverBubble(context)
-                                      : null),
-                            border: isHighlighted
-                                ? Border.all(color: ChatTheme.primary, width: 2)
-                                : null,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(18),
-                              topRight: const Radius.circular(18),
-                              bottomLeft: Radius.circular(isMe ? 18 : 4),
-                              bottomRight: Radius.circular(isMe ? 4 : 18),
+                        if (isSimpleText)
+                          Container(
+                            key: const ValueKey('message-bubble'),
+    padding: const EdgeInsets.symmetric(
+      horizontal: 14,
+      vertical: 9,
+    ),
+    decoration: BoxDecoration(
+      color: isFailed
+          ? Colors.red.shade400
+          : (isMe ? null : ChatTheme.getReceiverBubble(context)),
+      gradient: isMe && !isFailed
+          ? LinearGradient(
+              colors: ChatTheme.getSenderGradient(context),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
+          : null,
+      border: isHighlighted
+          ? Border.all(
+              color: ChatTheme.primary,
+              width: 2,
+            )
+          : null,
+      borderRadius: BorderRadius.only(
+        topLeft: const Radius.circular(18),
+        topRight: const Radius.circular(18),
+        bottomLeft: Radius.circular(isMe ? 18 : 6),
+        bottomRight: Radius.circular(isMe ? 6 : 18),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: isMe
+              ? ChatTheme.primary.withValues(alpha: 0.12)
+              : Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+          blurRadius: 5,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.4,
+        color: ChatTheme.getBodyText(context, isMe),
+      ),
+    ),
+  )
+else
+                          Container(
+                            key: const ValueKey('message-bubble'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 9,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: isMe
-                                    ? ChatTheme.primary.withValues(alpha: 0.28)
-                                    : Colors.black.withValues(
-                                        alpha: isDark ? 0.25 : 0.07,
+                            decoration: BoxDecoration(
+                              color: isFailed
+                                  ? Colors.red.shade400
+                                  : (isMe
+                                        ? null
+                                        : ChatTheme.getReceiverBubble(context)),
+                              gradient: isMe && !isFailed
+                                  ? LinearGradient(
+                                      colors: ChatTheme.getSenderGradient(
+                                        context,
                                       ),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : null,
+                              border: isHighlighted
+                                  ? Border.all(
+                                      color: ChatTheme.primary,
+                                      width: 2,
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(18),
+                                topRight: const Radius.circular(18),
+                                bottomLeft: Radius.circular(isMe ? 18 : 6),
+                                bottomRight: Radius.circular(isMe ? 6 : 18),
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (message['isForwarded'] == true)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    'Forwarded',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontStyle: FontStyle.italic,
-                                      color: isMe
-                                          ? Colors.white70
-                                          : Colors.grey.shade600,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isMe
+                                      ? ChatTheme.primary.withValues(
+                                          alpha: 0.28,
+                                        )
+                                      : Colors.black.withValues(
+                                          alpha: isDark ? 0.25 : 0.07,
+                                        ),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (message['isForwarded'] == true)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      'Forwarded',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        color: isMe
+                                            ? Colors.white70
+                                            : Colors.grey.shade600,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              if (hasReplyMetadata(message))
-                                ReplyMessagePreview(
-                                  text: replyPreviewText(message),
-                                  type: replyPreviewType(message),
-                                  isOutgoing: isMe,
-                                  onTap:
-                                      message[replyToMessageIdField] is String
-                                      ? () => onReplyTap?.call(
-                                          message[replyToMessageIdField]
-                                              as String,
-                                        )
-                                      : null,
-                                ),
-                              switch (message['type']) {
-                                'image' => _buildImageContent(
-                                  message['imageUrl'],
-                                ),
-                                'voice' => VoiceMessagePlayer(
-                                  audioUrl:
-                                      message['audioUrl'] as String? ?? '',
-                                  duration: Duration(
-                                    milliseconds:
-                                        message['durationMillis'] is int
-                                        ? message['durationMillis'] as int
-                                        : 0,
+                                if (hasReplyMetadata(message))
+                                  ReplyMessagePreview(
+                                    text: replyPreviewText(message),
+                                    type: replyPreviewType(message),
+                                    isOutgoing: isMe,
+                                    onTap:
+                                        message[replyToMessageIdField] is String
+                                        ? () => onReplyTap?.call(
+                                            message[replyToMessageIdField]
+                                                as String,
+                                          )
+                                        : null,
                                   ),
-                                  isOutgoing: isMe,
-                                ),
-                                _ => Text(
-                                  text,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    height: 1.4,
-                                    color: isMe
-                                        ? Colors.white
-                                        : (isDark
-                                              ? Colors.white.withValues(
-                                                  alpha: 0.87,
-                                                )
-                                              : Colors.black87),
+                                switch (message['type']) {
+                                  'image' => _buildImageContent(
+                                    message['imageUrl'],
                                   ),
-                                ),
-                              },
-                            ],
+                                  'voice' => VoiceMessagePlayer(
+                                    audioUrl:
+                                        message['audioUrl'] as String? ?? '',
+                                    duration: Duration(
+                                      milliseconds:
+                                          message['durationMillis'] is int
+                                          ? message['durationMillis'] as int
+                                          : 0,
+                                    ),
+                                    isOutgoing: isMe,
+                                  ),
+                                  _ => Text(
+                                    text,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      height: 1.4,
+                                      color: ChatTheme.getBodyText(
+                                        context,
+                                        isMe,
+                                      ),
+                                    ),
+                                  ),
+                                },
+                              ],
+                            ),
                           ),
-                        ),
                         if (reactionCounts.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 6),
@@ -455,17 +524,17 @@ class MessageTile extends StatelessWidget {
                               ],
                             ),
                           ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (message['editedAt'] != null) ...[
-                              const Text(
+                              Text(
                                 'Edited',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontStyle: FontStyle.italic,
-                                  color: Colors.grey,
+                                  color: isDark ? Colors.white70 : Colors.grey,
                                 ),
                               ),
                               const SizedBox(width: 4),
@@ -474,7 +543,7 @@ class MessageTile extends StatelessWidget {
                               time,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade500,
+                                color: ChatTheme.getTimeColor(context, isMe),
                               ),
                             ),
                             if (isMe) ...[
@@ -817,6 +886,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   AudioPlayer? _player;
   StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<Duration>? _positionSubscription;
+  WaveformController? _waveformController;
   bool _isLoading = false;
   bool _isPlaying = false;
   String? _error;
@@ -828,6 +899,15 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     _playbackRequest++;
     _activePlayerState = null;
     await activeState._stopPlayer();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _waveformController = WaveformController(bars: 60);
+    if (widget.audioUrl.isNotEmpty) {
+      _waveformController!.load(widget.audioUrl, autoPlay: false);
+    }
   }
 
   Future<void> _togglePlayback() async {
@@ -891,6 +971,11 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
           }
         },
       );
+      _positionSubscription = nextPlayer.positionStream.listen((position) {
+        if (mounted) {
+          _waveformController?.updatePosition(position);
+        }
+      });
       await nextPlayer.setUrl(widget.audioUrl);
       if (!_isCurrentPlayback(request, generation)) return;
       setState(() => _isPlaying = true);
@@ -940,6 +1025,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         _isLoading = false;
         _isPlaying = false;
       });
+      _waveformController?.updatePosition(Duration.zero);
     }
   }
 
@@ -950,6 +1036,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       _playbackRequest++;
     }
     _playerStateSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _waveformController?.dispose();
     final player = _player;
     if (player != null) {
       unawaited(_disposePlayer(player));
@@ -971,8 +1059,16 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     final foreground = widget.isOutgoing
         ? Colors.white
         : Theme.of(context).colorScheme.onSurface;
+    final waveformStyle = WaveformStyle(
+      baseColor: foreground.withValues(alpha: 0.35),
+      highlightColor: foreground,
+      barWidth: 2.0,
+      barSpacing: 1.5,
+      minBarHeight: 2.0,
+      barCap: BarCap.round,
+    );
     return SizedBox(
-      width: 184,
+      width: 204,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -998,6 +1094,50 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SizedBox(
+                  height: 30,
+                  child: ListenableBuilder(
+                    listenable: _waveformController!,
+                    builder: (context, _) {
+                      final ctrl = _waveformController!;
+                      if (ctrl.isWaveformLoading &&
+                          ctrl.waveform.isEmpty) {
+                        return CustomPaint(
+                          painter: WaveformPainter(
+                            amplitudes: List.generate(
+                              60,
+                              (i) => 0.2 + 0.3 * (i % 5) / 5,
+                            ),
+                            progress: 0.0,
+                            style: waveformStyle.copyWith(
+                              baseColor: waveformStyle.baseColor
+                                  .withValues(alpha: 0.3),
+                            ),
+                          ),
+                          size: Size(double.infinity, 30),
+                        );
+                      }
+                      if (ctrl.waveform.isEmpty) {
+                        return CustomPaint(
+                          painter: WaveformPainter(
+                            amplitudes: List.generate(60, (_) => 0.05),
+                            progress: 0.0,
+                            style: waveformStyle,
+                          ),
+                          size: Size(double.infinity, 30),
+                        );
+                      }
+                      return CustomPaint(
+                        painter: WaveformPainter(
+                          amplitudes: ctrl.waveform,
+                          progress: ctrl.playbackProgress,
+                          style: waveformStyle,
+                        ),
+                        size: Size(double.infinity, 30),
+                      );
+                    },
+                  ),
+                ),
                 Text(
                   formatVoiceDuration(widget.duration),
                   style: TextStyle(color: foreground, fontSize: 13),
@@ -1055,104 +1195,91 @@ class ChatInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fieldBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final controlsColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Emoji toggle
-          _IconBtn(
-            icon: showEmojiPicker
-                ? Icons.keyboard_rounded
-                : Icons.emoji_emotions_outlined,
-            color: showEmojiPicker
-                ? ChatTheme.primary
-                : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-            onTap: onToggleEmoji,
-          ),
-          const SizedBox(width: 4),
-          AnimatedBuilder(
-            animation: Listenable.merge([
-              controller.sendGuard,
-              voiceRecordingState,
-            ]),
-            builder: (context, _) => _IconBtn(
-              icon: Icons.attach_file_rounded,
-              color:
-                  controller.sendGuard.isSending ||
-                      isPickingImage ||
-                      isEditingMessage ||
-                      voiceRecordingState.status != VoiceRecordingStatus.idle
-                  ? Colors.grey.shade500
-                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-              onTap:
-                  controller.sendGuard.isSending ||
-                      isPickingImage ||
-                      isEditingMessage ||
-                      voiceRecordingState.status != VoiceRecordingStatus.idle
-                  ? null
-                  : onAttachImage,
-            ),
-          ),
-          const SizedBox(width: 4),
-          AnimatedBuilder(
-            animation: Listenable.merge([
-              voiceRecordingState,
-              controller.sendGuard,
-            ]),
-            builder: (context, _) => _IconBtn(
-              icon: voiceRecordingState.isRecording
-                  ? Icons.stop_circle_rounded
-                  : Icons.mic_none_rounded,
-              color:
-                  voiceRecordingState.status ==
-                          VoiceRecordingStatus.uploading ||
-                      voiceRecordingState.status ==
-                          VoiceRecordingStatus.finalizing ||
-                      controller.sendGuard.isSending ||
-                      isPickingImage ||
-                      isEditingMessage
-                  ? Colors.grey.shade500
-                  : voiceRecordingState.isRecording
-                  ? Colors.red.shade400
-                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-              onTap: switch (voiceRecordingState.status) {
-                VoiceRecordingStatus.idle
-                    when !controller.sendGuard.isSending &&
-                        !isPickingImage &&
-                        !isEditingMessage =>
-                  onStartRecording,
-                VoiceRecordingStatus.recording => onStopRecording,
-                _ => null,
-              },
-            ),
-          ),
-          const SizedBox(width: 4),
-
-          // Text field
           Expanded(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([
-                controller.sendGuard,
-                voiceRecordingState,
-              ]),
-              builder: (context, _) => MessageTextField(
-                controller: controller.messageController,
-                enabled:
-                    !controller.sendGuard.isSending &&
-                    !isSavingEdit &&
-                    voiceRecordingState.status == VoiceRecordingStatus.idle,
-                onSubmitted: (_) => onSendPressed(),
-                onChanged: onTextChanged,
-                backgroundColor: fieldBg,
+            child: Container(
+              key: const ValueKey('floating-composer-input'),
+              constraints: const BoxConstraints(minHeight: 52, maxHeight: 132),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: ChatTheme.getComposerBackground(context),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: ChatTheme.getComposerShadowColor(context),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _IconBtn(
+                    tooltip: showEmojiPicker ? 'Show keyboard' : 'Emoji',
+                    icon: showEmojiPicker
+                        ? Icons.keyboard_rounded
+                        : Icons.emoji_emotions_outlined,
+                    color: showEmojiPicker ? ChatTheme.primary : controlsColor,
+                    onTap: onToggleEmoji,
+                  ),
+                  AnimatedBuilder(
+                    animation: Listenable.merge([
+                      controller.sendGuard,
+                      voiceRecordingState,
+                    ]),
+                    builder: (context, _) => _IconBtn(
+                      tooltip: 'Attach image',
+                      icon: Icons.attach_file_rounded,
+                      color:
+                          controller.sendGuard.isSending ||
+                              isPickingImage ||
+                              isEditingMessage ||
+                              voiceRecordingState.status !=
+                                  VoiceRecordingStatus.idle
+                          ? Colors.grey.shade400
+                          : controlsColor,
+                      onTap:
+                          controller.sendGuard.isSending ||
+                              isPickingImage ||
+                              isEditingMessage ||
+                              voiceRecordingState.status !=
+                                  VoiceRecordingStatus.idle
+                          ? null
+                          : onAttachImage,
+                    ),
+                  ),
+                  Expanded(
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge([
+                        controller.sendGuard,
+                        voiceRecordingState,
+                      ]),
+                      builder: (context, _) => MessageTextField(
+                        controller: controller.messageController,
+                        enabled:
+                            !controller.sendGuard.isSending &&
+                            !isSavingEdit &&
+                            voiceRecordingState.status ==
+                                VoiceRecordingStatus.idle,
+                        onSubmitted: (_) => onSendPressed(),
+                        onChanged: onTextChanged,
+                        backgroundColor: Colors.transparent,
+                        showChrome: false,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
-
-          // Animated send button
+          const SizedBox(width: 10),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller.messageController,
             builder: (context, value, _) {
@@ -1172,60 +1299,23 @@ class ChatInputBar extends StatelessWidget {
                           VoiceRecordingStatus.uploading;
                   final voiceIsIdle =
                       voiceRecordingState.status == VoiceRecordingStatus.idle;
-                  return GestureDetector(
-                    onTap: hasText && !isSending && voiceIsIdle
-                        ? onSendPressed
-                        : null,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: hasText && !isSending && voiceIsIdle
-                              ? [ChatTheme.primary, ChatTheme.primaryDark]
-                              : [Colors.grey.shade400, Colors.grey.shade500],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                (hasText && !isSending && voiceIsIdle
-                                        ? ChatTheme.primary
-                                        : Colors.grey)
-                                    .withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          transitionBuilder: (child, animation) =>
-                              ScaleTransition(scale: animation, child: child),
-                          child: isSending || isBusy
-                              ? const SizedBox(
-                                  key: ValueKey('sending'),
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.send_rounded,
-                                  key: ValueKey(hasText),
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                        ),
-                      ),
-                    ),
+                  final canRecord =
+                      voiceIsIdle &&
+                      !controller.sendGuard.isSending &&
+                      !isPickingImage &&
+                      !isEditingMessage;
+                  final isRecording =
+                      voiceRecordingState.status ==
+                      VoiceRecordingStatus.recording;
+                  return ChatComposerPrimaryAction(
+                    hasText: hasText,
+                    isSending: isSending,
+                    isBusy: isBusy,
+                    canRecord: canRecord,
+                    isRecording: isRecording,
+                    onSendPressed: onSendPressed,
+                    onStartRecording: onStartRecording,
+                    onStopRecording: onStopRecording,
                   );
                 },
               );
@@ -1237,12 +1327,110 @@ class ChatInputBar extends StatelessWidget {
   }
 }
 
+class ChatComposerPrimaryAction extends StatelessWidget {
+  final bool hasText;
+  final bool isSending;
+  final bool isBusy;
+  final bool canRecord;
+  final bool isRecording;
+  final VoidCallback onSendPressed;
+  final VoidCallback onStartRecording;
+  final VoidCallback onStopRecording;
+
+  const ChatComposerPrimaryAction({
+    super.key,
+    required this.hasText,
+    required this.isSending,
+    required this.isBusy,
+    required this.canRecord,
+    required this.isRecording,
+    required this.onSendPressed,
+    required this.onStartRecording,
+    required this.onStopRecording,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final canSend = hasText && !isSending && !isBusy && !isRecording;
+    final isAvailable = canSend || canRecord || isRecording;
+    final onTap = canSend
+        ? onSendPressed
+        : isRecording
+        ? onStopRecording
+        : canRecord
+        ? onStartRecording
+        : null;
+
+    return GestureDetector(
+      key: const ValueKey('composer-primary-action'),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: isRecording
+              ? Colors.red.shade400
+              : isAvailable
+              ? ChatTheme.primary
+              : Colors.grey.shade400,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: (isAvailable ? ChatTheme.primary : Colors.grey).withValues(
+                alpha: 0.28,
+              ),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) =>
+                ScaleTransition(scale: animation, child: child),
+            child: isSending || isBusy
+                ? const SizedBox(
+                    key: ValueKey('sending'),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    hasText
+                        ? Icons.send_rounded
+                        : isRecording
+                        ? Icons.stop_rounded
+                        : Icons.mic_none_rounded,
+                    key: ValueKey(
+                      hasText
+                          ? 'composer-send'
+                          : isRecording
+                          ? 'composer-stop-recording'
+                          : 'composer-microphone',
+                    ),
+                    color: Colors.white,
+                    size: 23,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class MessageTextField extends StatelessWidget {
   final TextEditingController controller;
   final bool enabled;
   final ValueChanged<String> onSubmitted;
   final ValueChanged<String>? onChanged;
   final Color backgroundColor;
+  final bool showChrome;
 
   const MessageTextField({
     super.key,
@@ -1251,49 +1439,55 @@ class MessageTextField extends StatelessWidget {
     required this.onSubmitted,
     required this.backgroundColor,
     this.onChanged,
+    this.showChrome = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textField = TextField(
+      controller: controller,
+      enabled: enabled,
+      onChanged: onChanged,
+      textCapitalization: TextCapitalization.sentences,
+      textInputAction: TextInputAction.newline,
+      maxLines: null,
+      style: TextStyle(fontSize: 15, color: ChatTheme.getPrimaryText(context)),
+      decoration: InputDecoration(
+        hintText: 'Message...',
+        hintStyle: TextStyle(
+          color: ChatTheme.getHintText(context),
+          fontSize: 15,
+        ),
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 11,
+        ),
+      ),
+      onSubmitted: onSubmitted,
+    );
+
+    if (!showChrome) {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44, maxHeight: 120),
+        child: textField,
+      );
+    }
+
     return Container(
-      constraints: const BoxConstraints(minHeight: 46, maxHeight: 120),
+      constraints: const BoxConstraints(minHeight: 44, maxHeight: 120),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.07),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: ChatTheme.getComposerShadowColor(context),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        onChanged: onChanged,
-        textCapitalization: TextCapitalization.sentences,
-        textInputAction: TextInputAction.newline,
-        maxLines: null,
-        style: TextStyle(
-          fontSize: 15,
-          color: isDark ? Colors.white.withValues(alpha: 0.87) : Colors.black87,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Message...',
-          hintStyle: TextStyle(
-            color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
-            fontSize: 15,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 13,
-          ),
-        ),
-        onSubmitted: onSubmitted,
-      ),
+      child: textField,
     );
   }
 }
@@ -1303,22 +1497,24 @@ class _IconBtn extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
+  final String tooltip;
 
   const _IconBtn({
     required this.icon,
     required this.color,
     required this.onTap,
+    required this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Icon(icon, color: color, size: 24),
-      ),
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onTap,
+      icon: Icon(icon, color: color, size: 22),
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 44),
+      padding: EdgeInsets.zero,
     );
   }
 }

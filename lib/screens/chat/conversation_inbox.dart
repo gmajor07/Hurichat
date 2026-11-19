@@ -72,6 +72,8 @@ List<Map<String, dynamic>> buildConversationInboxItems({
   required Map<String, Map<String, dynamic>> profiles,
   required Set<String> pinnedUserIds,
   Map<String, String> drafts = const {},
+  Set<String> hiddenChatIds = const {},
+  Map<String, int> clearedChats = const {},
 }) {
   final itemsByUserId = <String, Map<String, dynamic>>{};
 
@@ -85,9 +87,6 @@ List<Map<String, dynamic>> buildConversationInboxItems({
     );
     if (otherUserId.isEmpty) continue;
 
-    final profile = profiles[otherUserId] ?? const <String, dynamic>{};
-    final rawName = profile['name'];
-    final name = rawName is String && rawName.isNotEmpty ? rawName : 'Unknown';
     final rawTimestamp =
         chat.value['last_message_timestamp'] ??
         chat.value['lastTimestamp'] ??
@@ -97,6 +96,25 @@ List<Map<String, dynamic>> buildConversationInboxItems({
       int value => value,
       _ => 0,
     };
+
+    // "Delete for me": a chat stays hidden only while it was explicitly
+    // cleared (a clearedChats timestamp exists) and no message has arrived
+    // after that instant. When a participant sends a newer message
+    // (timestamp > clearedAt) the chat automatically reappears.
+    //
+    // Legacy hiddenChats entries that have no clearedChats timestamp (created
+    // by the older delete flow) are treated as NOT hidden so those
+    // conversations can reappear in the inbox.
+    final clearedAt = clearedChats[chat.key];
+    final isHidden =
+        hiddenChatIds.contains(chat.key) &&
+        clearedAt != null &&
+        timestamp <= clearedAt;
+    if (isHidden) continue;
+
+    final profile = profiles[otherUserId] ?? const <String, dynamic>{};
+    final rawName = profile['name'];
+    final name = rawName is String && rawName.isNotEmpty ? rawName : 'Unknown';
     final lastMessage = (chat.value['lastMessage'] ?? '').toString();
     final draft =
         drafts[conversationDraftKey(
